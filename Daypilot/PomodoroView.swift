@@ -18,6 +18,9 @@ struct PomodoroView: View {
     @State private var sessionLabel      = "Focus"
     @State private var showSettings      = false
     @State private var liveActivity: Activity<PomodoroActivityAttributes>? = nil
+    @State private var sessionStartTime: Date? = nil
+
+    @Environment(\.modelContext) private var modelContext
 
     private var theme: ThemeOption { AppThemes.find(selectedTheme) }
 
@@ -112,6 +115,7 @@ struct PomodoroView: View {
                     Button {
                         secondsLeft = totalSeconds
                         isRunning = false
+                        sessionStartTime = nil
                         endLiveActivity()
                     } label: {
                         Image(systemName: "arrow.counterclockwise")
@@ -125,7 +129,12 @@ struct PomodoroView: View {
 
                     Button {
                         isRunning.toggle()
-                        if isRunning { startLiveActivity() } else { pauseLiveActivity() }
+                        if isRunning {
+                            if sessionStartTime == nil { sessionStartTime = Date() }
+                            startLiveActivity()
+                        } else {
+                            pauseLiveActivity()
+                        }
                     } label: {
                         Image(systemName: isRunning ? "pause.fill" : "play.fill")
                             .font(.system(size: 26, weight: .bold))
@@ -247,6 +256,17 @@ struct PomodoroView: View {
     }
 
     private func handleTimerEnd() {
+        if sessionLabel == "Focus", let task = linkedTask {
+            let session = FocusSession(
+                startedAt: sessionStartTime ?? Date().addingTimeInterval(-TimeInterval(totalSeconds)),
+                duration: TimeInterval(totalSeconds),
+                sessionLabel: "Focus"
+            )
+            task.focusSessions.append(session)
+            modelContext.insert(session)
+            try? modelContext.save()
+        }
+        sessionStartTime = nil
         isRunning = false
         AudioServicesPlaySystemSound(1005)
         HapticEngine.notification(.success)

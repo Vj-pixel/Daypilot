@@ -53,13 +53,22 @@ struct CanvasAssignment: Codable, Identifiable {
     let id: Int
     let name: String
     let due_at: String?
+    let points_possible: Double?
+    let assignment_group_id: Int?
 
     var courseId: Int = 0
     var courseName: String = ""
+    var gradeWeight: Double? = nil  // filled in from assignment group after fetch
 
     enum CodingKeys: String, CodingKey {
-        case id, name, due_at
+        case id, name, due_at, points_possible, assignment_group_id
     }
+}
+
+struct CanvasAssignmentGroup: Codable, Identifiable {
+    let id: Int
+    let name: String
+    let group_weight: Double?
 }
 
 // MARK: - Canvas Service
@@ -98,6 +107,15 @@ actor CanvasService {
             }
         }
         return all
+    }
+
+    func fetchAssignmentGroups(domain: String, token: String, courseId: Int) async throws -> [CanvasAssignmentGroup] {
+        guard let url = URL(string: "https://\(domain)/api/v1/courses/\(courseId)/assignment_groups?per_page=100") else { return [] }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try validateResponse(response)
+        return (try? JSONDecoder().decode([CanvasAssignmentGroup].self, from: data)) ?? []
     }
 
     private func validateResponse(_ response: URLResponse) throws {
@@ -254,14 +272,24 @@ struct CanvasAssignmentRow: View {
                 Text(assignment.name)
                     .font(.body.weight(.medium))
                     .lineLimit(2)
-                if let due = parsedDue {
-                    Text("Due: \(due.formatted(date: .abbreviated, time: .shortened))")
-                        .font(.caption)
-                        .foregroundColor(dueColor(for: due))
-                } else {
-                    Text("No due date")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                HStack(spacing: 6) {
+                    if let due = parsedDue {
+                        Text("Due: \(due.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.caption)
+                            .foregroundColor(dueColor(for: due))
+                    } else {
+                        Text("No due date")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    if let weight = assignment.gradeWeight, weight > 0 {
+                        Text("·")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("\(Int(weight))% of grade")
+                            .font(.caption.weight(.medium))
+                            .foregroundColor(.purple.opacity(0.85))
+                    }
                 }
             }
             Spacer()
@@ -497,9 +525,19 @@ struct CanvasView: View {
                 var courseAssignments = try await CanvasService.shared.fetchAssignments(
                     domain: domain, token: token, courseId: course.id
                 )
+                let groups = try await CanvasService.shared.fetchAssignmentGroups(
+                    domain: domain, token: token, courseId: course.id
+                )
+                let groupWeights = Dictionary(uniqueKeysWithValues: groups.compactMap { g -> (Int, Double)? in
+                    guard let w = g.group_weight, w > 0 else { return nil }
+                    return (g.id, w)
+                })
                 for i in courseAssignments.indices {
                     courseAssignments[i].courseId = course.id
                     courseAssignments[i].courseName = course.name
+                    if let gid = courseAssignments[i].assignment_group_id {
+                        courseAssignments[i].gradeWeight = groupWeights[gid]
+                    }
                 }
                 allAssignments.append(contentsOf: courseAssignments)
             }
@@ -524,9 +562,12 @@ struct CanvasView: View {
     private func importAsTask(_ assignment: CanvasAssignment, dueDate: Date?) {
         let urgency: UrgencyLevel = {
             guard let due = dueDate else { return .notUrgent }
-            let days = Calendar.current.dateComponents([.day], from: Date(), to: due).day ?? 99
-            if days <= 2 { return .urgent }
-            if days <= 7 { return .kindaUrgent }
+            let days = max(0, Calendar.current.dateComponents([.day], from: Date(), to: due).day ?? 99)
+            let daysScore = max(0.0, 1.0 - Double(days) / 14.0)
+            let weightScore = (assignment.gradeWeight ?? 0.0) / 100.0
+            let priority = daysScore * 0.7 + weightScore * 0.3
+            if priority > 0.6 { return .urgent }
+            if priority > 0.3 { return .kindaUrgent }
             return .notUrgent
         }()
         let title = assignment.courseName.isEmpty

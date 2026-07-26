@@ -60,7 +60,7 @@ struct DaypilotApp: App {
                 GIDSignIn.sharedInstance.handle(url)
             }
         }
-        .modelContainer(for: Daypilot.self)
+        .modelContainer(for: [Daypilot.self, FocusSession.self])
     }
 
     init() {
@@ -117,6 +117,15 @@ enum TaskStatus: String, CaseIterable, Codable {
 enum TaskType: String, Codable, CaseIterable {
     case task = "Task"
     case habit = "Habit"
+    case application = "Application"
+}
+
+enum ApplicationStage: String, CaseIterable {
+    case found      = "Found"
+    case researching = "Researching"
+    case inProgress = "In Progress"
+    case applied    = "Applied"
+    case decision   = "Decision"
 }
 
 enum HabitFrequency: String, Codable, CaseIterable {
@@ -167,6 +176,12 @@ class Daypilot: Identifiable {
     // Completion timestamp (nil for habits, which reset daily via lastCompletedDate)
     var completedAt: Date? = nil
 
+    // Application pipeline stage (used when type == .application)
+    var applicationStage: String? = nil
+
+    // Logged Pomodoro focus sessions for this task
+    @Relationship(deleteRule: .cascade) var focusSessions: [FocusSession] = []
+
     var attachmentImage: UIImage? {
         guard let path = attachmentImagePath else { return nil }
         let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -194,7 +209,12 @@ class Daypilot: Identifiable {
         get { TaskStatus(rawValue: statusRaw) ?? .open }
         set { statusRaw = newValue.rawValue }
     }
-    
+
+    var stage: ApplicationStage {
+        get { ApplicationStage(rawValue: applicationStage ?? "") ?? .found }
+        set { applicationStage = newValue.rawValue }
+    }
+
     // Initializer
     init(
         title: String,
@@ -218,6 +238,22 @@ class Daypilot: Identifiable {
         self.habitFrequencyRaw = habitFrequency.rawValue
         self.streakCount = streakCount
         self.lastCompletedDate = lastCompletedDate
+    }
+}
+
+// MARK: - Focus Session
+
+@Model
+class FocusSession {
+    var uuid: UUID = UUID()
+    var startedAt: Date = Date()
+    var duration: TimeInterval = 0
+    var sessionLabel: String = "Focus"
+
+    init(startedAt: Date = Date(), duration: TimeInterval, sessionLabel: String = "Focus") {
+        self.startedAt = startedAt
+        self.duration = duration
+        self.sessionLabel = sessionLabel
     }
 }
 

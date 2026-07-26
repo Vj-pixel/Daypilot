@@ -56,6 +56,20 @@ struct WeeklyReviewView: View {
             .max(by: { $0.streakCount < $1.streakCount })
     }
 
+    private var focusSecondsThisWeek: TimeInterval {
+        allTasks
+            .flatMap { $0.focusSessions }
+            .filter { $0.sessionLabel == "Focus" && weekInterval.contains($0.startedAt) }
+            .map(\.duration)
+            .reduce(0, +)
+    }
+
+    private var focusTimeLabel: String {
+        let minutes = Int(focusSecondsThisWeek) / 60
+        guard minutes > 0 else { return "0m" }
+        return minutes >= 60 ? "\(minutes / 60)h \(minutes % 60)m" : "\(minutes)m"
+    }
+
     private var maxBarValue: Int {
         max(tasksByDay.map(\.1).max() ?? 1, 1)
     }
@@ -77,12 +91,12 @@ struct WeeklyReviewView: View {
                         }
 
                         HStack(spacing: 12) {
+                            statCard(value: focusTimeLabel, label: "Focus Time", icon: "brain.head.profile", color: .purple)
                             statCard(value: bestDay, label: "Best Day", icon: "star.fill", color: theme.accentColor)
-                            if let top = topStreak {
-                                statCard(value: "\(top.streakCount)d", label: top.title, icon: "bolt.fill", color: .yellow)
-                            } else {
-                                statCard(value: "—", label: "Top Streak", icon: "bolt.fill", color: .yellow)
-                            }
+                        }
+
+                        if let top = topStreak {
+                            statCard(value: "\(top.streakCount)d streak", label: top.title, icon: "bolt.fill", color: .yellow)
                         }
 
                         // Daily bar chart

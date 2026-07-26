@@ -1125,6 +1125,82 @@ struct FormActionButton: View {
     }
 }
 
+// MARK: - Backplan Templates
+
+struct BackplanTemplates {
+    enum Category { case essay, test, lab, project, general }
+
+    static func category(for title: String) -> Category {
+        let t = title.lowercased()
+        if t.contains("essay") || t.contains("paper") || t.contains("draft") || t.contains("write") || t.contains("report") { return .essay }
+        if t.contains("test") || t.contains("exam") || t.contains("quiz") || t.contains("midterm") || t.contains("final") { return .test }
+        if t.contains("lab") || t.contains("experiment") { return .lab }
+        if t.contains("project") || t.contains("presentation") || t.contains("slides") || t.contains("demo") { return .project }
+        return .general
+    }
+
+    static func steps(for title: String, daysUntilDue: Int) -> [String] {
+        let raw: [String]
+        switch category(for: title) {
+        case .essay:
+            raw = ["Brainstorm & outline", "Write first draft", "Revise draft", "Proofread & finalize"]
+        case .test:
+            raw = ["Review notes", "Make study guide", "Practice problems", "Final review"]
+        case .lab:
+            raw = ["Review procedure", "Gather materials", "Run experiment", "Analyze data & write up"]
+        case .project:
+            raw = ["Define scope", "Research & gather assets", "Build draft", "Review & polish"]
+        case .general:
+            raw = ["Plan approach", "Start work", "Check progress", "Complete & review"]
+        }
+        guard raw.count > 1 else { return raw }
+        return raw.enumerated().map { i, step in
+            let day = max(1, Int((Double(i) / Double(raw.count - 1)) * Double(daysUntilDue)))
+            return "Day \(day): \(step)"
+        }
+    }
+}
+
+// MARK: - Crunch Alert Banner
+
+struct CrunchAlertBanner: View {
+    let count: Int
+    let onSprint: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "bolt.trianglebadge.exclamationmark.fill")
+                .font(.system(size: 17))
+                .foregroundColor(.orange)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Crunch ahead")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.white)
+                Text("\(count) tasks due in the next 48 hours")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.65))
+            }
+            Spacer()
+            Button("Sprint", action: onSprint)
+                .font(.caption.weight(.bold))
+                .foregroundColor(.orange)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.orange.opacity(0.2))
+                .clipShape(Capsule())
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color.orange.opacity(0.08))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.orange.opacity(0.3), lineWidth: 1))
+        )
+        .padding(.horizontal, 16)
+        .padding(.bottom, 4)
+    }
+}
+
 // MARK: - Task Form View
 
 struct TaskFormView: View {
@@ -1144,6 +1220,7 @@ struct TaskFormView: View {
     @Binding var pendingSubtaskTitles: [String]
     @Binding var reminderEnabled: Bool
     @Binding var reminderTime: Date
+    @Binding var applicationStage: String
 
     var onSave: () -> Void
     var isEditing: Bool = false
@@ -1242,7 +1319,82 @@ struct TaskFormView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
-                DatePicker("Due Date", selection: $selectedDate, displayedComponents: [.date, .hourAndMinute])
+                // Application stage picker
+                if selectedType == .application {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Pipeline Stage")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Picker("Stage", selection: $applicationStage) {
+                            ForEach(ApplicationStage.allCases, id: \.rawValue) { stage in
+                                Text(stage.rawValue).tag(stage.rawValue)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                }
+
+                DatePicker(
+                    selectedType == .application ? "Deadline" : "Due Date",
+                    selection: $selectedDate,
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+
+                // Backplan chip — offered for tasks with a due date > 3 days out
+                if selectedType == .task,
+                   !toDoTitle.trimmingCharacters(in: .whitespaces).isEmpty,
+                   let days = Calendar.current.dateComponents([.day], from: Date(), to: selectedDate).day,
+                   days >= 3 {
+                    let steps = BackplanTemplates.steps(for: toDoTitle, daysUntilDue: days)
+                    if pendingSubtaskTitles.isEmpty {
+                        Button {
+                            withAnimation { pendingSubtaskTitles = steps }
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "wand.and.stars").font(.caption)
+                                Text("Generate \(days)-day plan (\(steps.count) steps)")
+                                    .font(.caption.weight(.medium))
+                                Spacer()
+                                Image(systemName: "chevron.right").font(.caption2)
+                            }
+                            .foregroundColor(theme.accentColor)
+                            .padding(.horizontal, 12).padding(.vertical, 8)
+                            .background(theme.accentColor.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
+                        .buttonStyle(.plain)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                }
+
+                // Application auto-subtask offer
+                if selectedType == .application, pendingSubtaskTitles.isEmpty {
+                    Button {
+                        withAnimation {
+                            pendingSubtaskTitles = [
+                                "Research eligibility & requirements",
+                                "Draft personal statement",
+                                "Request recommendation letters",
+                                "Prepare supporting materials",
+                                "Review & submit application"
+                            ]
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "wand.and.stars").font(.caption)
+                            Text("Auto-fill application checklist")
+                                .font(.caption.weight(.medium))
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.caption2)
+                        }
+                        .foregroundColor(.purple)
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                        .background(Color.purple.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                    .buttonStyle(.plain)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
 
                 // ── Advanced (collapsible) ───────────────────────────────
                 DisclosureGroup(isExpanded: $showAdvancedOptions) {
@@ -1972,6 +2124,7 @@ struct TasksView: View {
     @State private var pendingSubtaskTitles: [String] = []
     @State private var formReminderEnabled: Bool = false
     @State private var formReminderTime: Date = Calendar.current.date(from: DateComponents(hour: 9, minute: 0)) ?? Date()
+    @State private var formApplicationStage: String = ApplicationStage.found.rawValue
     @State private var isSearching: Bool = false
     @State private var searchText: String = ""
     @State private var selectedTagFilter: String? = nil
@@ -2057,6 +2210,17 @@ struct TasksView: View {
         Rectangle().fill(gradientManager.gradient)
     }
 
+    private var crunchWindowTasks: [Daypilot] {
+        let now = Date()
+        guard let cutoff = Calendar.current.date(byAdding: .hour, value: 48, to: now) else { return [] }
+        return daypilots.filter { task in
+            guard (task.type == .task || task.type == .application),
+                  !task.isCompleted,
+                  let due = task.dueDate else { return false }
+            return due > now && due <= cutoff
+        }
+    }
+
     private var tasksByDay: [Date: [Daypilot]] {
         var dict: [Date: [Daypilot]] = Dictionary(
             grouping: daypilots.filter { $0.type == .task && $0.dueDate != nil }
@@ -2118,6 +2282,14 @@ struct TasksView: View {
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 10)
+
+            if !crunchWindowTasks.isEmpty {
+                CrunchAlertBanner(count: crunchWindowTasks.count) {
+                    pomodoroTask = crunchWindowTasks.first
+                    isPomodoroShowing = true
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
 
             MiniCalendarStrip(
                 displayedMonth: $calendarDisplayedMonth,
@@ -2315,6 +2487,7 @@ struct TasksView: View {
 
     private var tasksList: some View {
         let regularTasks = filteredAndSortedDaypilots.filter { $0.type == .task }
+        let applications = filteredAndSortedDaypilots.filter { $0.type == .application }
         let habits = filteredAndSortedDaypilots
             .filter { $0.type == .habit }
             .sorted { a, b in
@@ -2328,6 +2501,13 @@ struct TasksView: View {
             if !regularTasks.isEmpty {
                 Section("Tasks") {
                     ForEach(regularTasks, id: \.uuid) { toDo in
+                        taskRow(for: toDo)
+                    }
+                }
+            }
+            if !applications.isEmpty {
+                Section("Applications") {
+                    ForEach(applications, id: \.uuid) { toDo in
                         taskRow(for: toDo)
                     }
                 }
@@ -2432,6 +2612,7 @@ struct TasksView: View {
             pendingSubtaskTitles: $pendingSubtaskTitles,
             reminderEnabled: $formReminderEnabled,
             reminderTime: $formReminderTime,
+            applicationStage: $formApplicationStage,
             onSave: addTask
         )
     }
@@ -2454,6 +2635,7 @@ struct TasksView: View {
             pendingSubtaskTitles: .constant([]),
             reminderEnabled: $formReminderEnabled,
             reminderTime: $formReminderTime,
+            applicationStage: $formApplicationStage,
             onSave: updateTask,
             isEditing: true,
             task: editingTask
@@ -2603,6 +2785,7 @@ struct TasksView: View {
         formAttachmentImagePath = task.attachmentImagePath
         formUserTag = task.userTag ?? ""
         formNotes = task.notes ?? ""
+        formApplicationStage = task.applicationStage ?? ApplicationStage.found.rawValue
         if let rt = task.reminderTime {
             formReminderEnabled = true
             formReminderTime = rt
@@ -2628,6 +2811,7 @@ struct TasksView: View {
         pendingSubtaskTitles = []
         formReminderEnabled = false
         formReminderTime = Calendar.current.date(from: DateComponents(hour: 9, minute: 0)) ?? Date()
+        formApplicationStage = ApplicationStage.found.rawValue
     }
 
     private func addTask() {
@@ -2650,6 +2834,7 @@ struct TasksView: View {
         newTask.userTag = formUserTag.isEmpty ? nil : formUserTag
         newTask.notes = formNotes.isEmpty ? nil : formNotes
         newTask.reminderTime = formReminderEnabled ? formReminderTime : nil
+        if selectedType == .application { newTask.applicationStage = formApplicationStage }
         modelContext.insert(newTask)
         for title in pendingSubtaskTitles {
             let sub = Daypilot(title: title, urgency: .notUrgent, type: .task)
@@ -2688,6 +2873,7 @@ struct TasksView: View {
         task.userTag = formUserTag.isEmpty ? nil : formUserTag
         task.notes = formNotes.isEmpty ? nil : formNotes
         task.reminderTime = formReminderEnabled ? formReminderTime : nil
+        if task.type == .application { task.applicationStage = formApplicationStage }
         do {
             try modelContext.save()
             if task.type == .habit {
