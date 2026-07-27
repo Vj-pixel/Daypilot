@@ -15,6 +15,8 @@ struct ContributionGraphView: View {
     private let gap: CGFloat = 3
     private let calendar = Calendar.current
 
+    @State private var tooltipDate: Date? = nil
+
     private var activityByDay: [Date: Int] {
         var dict: [Date: Int] = [:]
         for task in daypilots where task.isCompleted && task.type == .task {
@@ -66,8 +68,30 @@ struct ContributionGraphView: View {
         return labels
     }
 
+    private func tooltipText(for date: Date) -> String {
+        let count = activityByDay[date] ?? 0
+        let dateStr = date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+        let countStr = count == 0 ? "Nothing done" : count == 1 ? "1 completion" : "\(count) completions"
+        return "\(dateStr) · \(countStr)"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
+            // Tooltip (shown above month labels when a cell is selected)
+            if let date = tooltipDate {
+                Text(tooltipText(for: date))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.white.opacity(0.18))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.2), lineWidth: 1))
+                    )
+                    .transition(.opacity.combined(with: .scale(scale: 0.92)))
+            }
+
             ZStack(alignment: .topLeading) {
                 ForEach(monthLabels, id: \.1) { label, x in
                     Text(label)
@@ -83,13 +107,25 @@ struct ContributionGraphView: View {
                     VStack(spacing: gap) {
                         ForEach(0..<7, id: \.self) { row in
                             let date = gridColumns[col][row]
+                            let isSelected = tooltipDate.map { calendar.isDate($0, inSameDayAs: date) } ?? false
                             RoundedRectangle(cornerRadius: 2.5)
                                 .fill(cellColor(for: date))
                                 .frame(width: cellSize, height: cellSize)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 2.5)
+                                        .stroke(Color.white.opacity(isSelected ? 0.7 : 0), lineWidth: 1.5)
+                                )
+                                .onTapGesture {
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        tooltipDate = (tooltipDate.map { calendar.isDate($0, inSameDayAs: date) } ?? false)
+                                            ? nil : date
+                                    }
+                                }
                         }
                     }
                 }
             }
+            .onTapGesture {} // absorb taps on the grid container without dismissing
 
             HStack {
                 Text("Less")

@@ -1224,6 +1224,7 @@ struct TaskFormView: View {
 
     var onSave: () -> Void
     var isEditing: Bool = false
+    var isTypeLocked: Bool = false
     var task: Daypilot? = nil
 
     @Environment(\.modelContext) private var modelContext
@@ -1245,10 +1246,12 @@ struct TaskFormView: View {
             VStack(spacing: 20) {
 
                 // ── Simple (always visible) ──────────────────────────────
-                Picker("Type", selection: $selectedType) {
-                    ForEach(TaskType.allCases, id: \.self) { Text($0.rawValue) }
+                if !isTypeLocked {
+                    Picker("Type", selection: $selectedType) {
+                        ForEach(TaskType.allCases, id: \.self) { Text($0.rawValue) }
+                    }
+                    .pickerStyle(.segmented)
                 }
-                .pickerStyle(.segmented)
 
                 HStack(spacing: 8) {
                     TextField("Enter task name", text: $toDoTitle)
@@ -2366,6 +2369,14 @@ struct TasksView: View {
                             Label("New Habit", systemImage: "repeat.circle")
                         }
                         Button {
+                            resetForm()
+                            selectedType = .application
+                            formApplicationStage = ApplicationStage.found.rawValue
+                            isSheetShowing = true
+                        } label: {
+                            Label("New Application", systemImage: "doc.badge.plus")
+                        }
+                        Button {
                             isPomodoroShowing = true
                         } label: {
                             Label("Focus Timer", systemImage: "timer")
@@ -2613,7 +2624,8 @@ struct TasksView: View {
             reminderEnabled: $formReminderEnabled,
             reminderTime: $formReminderTime,
             applicationStage: $formApplicationStage,
-            onSave: addTask
+            onSave: addTask,
+            isTypeLocked: true
         )
     }
 
