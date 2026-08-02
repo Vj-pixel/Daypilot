@@ -17,6 +17,8 @@
 	<true/>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Daypilot uses Face ID to protect your tasks and habits.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Daypilot uses your location to show real weather conditions on the Live theme.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Daypilot uses the microphone to let you speak task names.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

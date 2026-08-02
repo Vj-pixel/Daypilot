@@ -667,12 +667,12 @@ struct TaskContentView: View {
         .background(
             ZStack {
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThickMaterial)
+                    .fill(Color.white.opacity(0.07))
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
                             .stroke(
                                 LinearGradient(
-                                    colors: [.white.opacity(0.3), .white.opacity(0.1)],
+                                    colors: [.white.opacity(0.22), .white.opacity(0.06)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
@@ -1794,9 +1794,15 @@ struct DayNavigatorView: View {
     private var displayDate: Date { selectedDate ?? Calendar.current.startOfDay(for: Date()) }
 
     private var dateLabel: String {
+        let cal = Calendar.current
         let f = DateFormatter()
-        f.dateFormat = "EEEE, MM/dd"
-        return f.string(from: displayDate)
+        f.dateFormat = "MM/dd"
+        let mmdd = f.string(from: displayDate)
+        if cal.isDateInToday(displayDate)     { return "Today, \(mmdd)" }
+        if cal.isDateInYesterday(displayDate) { return "Yesterday, \(mmdd)" }
+        let df = DateFormatter()
+        df.dateFormat = "EEEE, MM/dd"
+        return df.string(from: displayDate)
     }
 
     var body: some View {

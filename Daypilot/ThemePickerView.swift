@@ -247,10 +247,13 @@ private func c(_ r: Double, _ g: Double, _ b: Double) -> Color {
 
 // MARK: - Theme Card
 
+private let starredThemeIDs: Set<String> = ["original", "live", "galaxy", "aurora", "midnight"]
+
 struct ThemeCard: View {
     let theme: ThemeOption
     let isSelected: Bool
     var accentOnly: Bool = false
+    var isStarred: Bool = false
 
     var body: some View {
         VStack(spacing: 10) {
@@ -293,6 +296,14 @@ struct ThemeCard: View {
             color: isSelected ? theme.color1.opacity(0.6) : .clear,
             radius: 10, x: 0, y: 0
         )
+        .overlay(alignment: .topTrailing) {
+            if isStarred {
+                Image(systemName: "star.fill")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(.yellow)
+                    .padding(6)
+            }
+        }
         .animation(.easeInOut(duration: 0.2), value: isSelected)
     }
 }
@@ -329,7 +340,8 @@ struct ThemePickerView: View {
                             ThemeCard(
                                 theme: theme,
                                 isSelected: selectedTheme == theme.id,
-                                accentOnly: themeMode == "accent"
+                                accentOnly: themeMode == "accent",
+                                isStarred: starredThemeIDs.contains(theme.id)
                             )
                             .onTapGesture {
                                 selectedTheme = theme.id

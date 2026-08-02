@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreLocation
 
 // MARK: - Dispatcher
 
@@ -26,6 +27,12 @@ struct ThemeParticleView: View {
             FallingParticles(cfg: .bubbles)
         case "cyberpunk":
             CyberpunkGrid()
+        case "sage":
+            GrowingVines()
+        case "stone":
+            FallingStones()
+        case "amber":
+            CometsView()
         case "cute":
             FallingParticles(cfg: .hearts)
         case "tangerine":
@@ -359,10 +366,10 @@ private enum PConfig {
 
     var count: Int {
         switch self {
-        case .petals:   return 10
-        case .sparks:   return 12
-        case .leaves:   return 8
-        case .bubbles:  return 8
+        case .petals:   return 22
+        case .sparks:   return 24
+        case .leaves:   return 20
+        case .bubbles:  return 20
         case .hearts:   return 8
         case .sparkles: return 10
         case .dust:     return 12
@@ -402,7 +409,12 @@ private enum PConfig {
         default: return true
         }
     }
-    var baseAlpha: Double { 0.45 }
+    var baseAlpha: Double {
+        switch self {
+        case .bubbles: return 0.70
+        default:       return 0.45
+        }
+    }
     var seed: UInt64 {
         switch self {
         case .petals:   return 101
@@ -523,11 +535,11 @@ private struct FallingParticles: View {
                             c.translateBy(x: x, y: y)
                             let r    = p.size / 2
                             let circ = Path(ellipseIn: CGRect(x: -r, y: -r, width: r*2, height: r*2))
-                            c.opacity = alpha * 0.18
+                            c.opacity = alpha * 0.25
                             c.fill(circ, with: .color(col))
-                            c.opacity = alpha * 0.80
-                            c.stroke(circ, with: .color(col), lineWidth: 1.6)
                             c.opacity = alpha * 0.90
+                            c.stroke(circ, with: .color(col), lineWidth: 2.2)
+                            c.opacity = alpha
                             c.fill(
                                 Path(ellipseIn: CGRect(x: -r*0.55, y: -r*0.65,
                                                        width: r*0.40, height: r*0.26)),
@@ -665,11 +677,61 @@ private struct SmokeView: View {
     }
 }
 
-// MARK: - Live Sky (sun arc + moon + stars, time-of-day driven)
+// MARK: - Live Weather Service
+
+private final class LiveWeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
+    @Published var cloudFraction: Double = 0.30
+    @Published var isRaining: Bool = false
+
+    private let manager = CLLocationManager()
+    private var fetched = false
+
+    override init() {
+        super.init()
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyKilometer
+        manager.requestWhenInUseAuthorization()
+        manager.requestLocation()
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        switch manager.authorizationStatus {
+        case .authorizedWhenInUse, .authorizedAlways: manager.requestLocation()
+        default: break
+        }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locs: [CLLocation]) {
+        guard !fetched, let loc = locs.last else { return }
+        fetched = true
+        let lat = loc.coordinate.latitude, lon = loc.coordinate.longitude
+        Task { await fetch(lat: lat, lon: lon) }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {}
+
+    @MainActor
+    private func fetch(lat: Double, lon: Double) async {
+        let urlStr = "https://api.open-meteo.com/v1/forecast?latitude=\(lat)&longitude=\(lon)&current=weather_code,cloud_cover&forecast_days=1"
+        guard let url = URL(string: urlStr),
+              let (data, _) = try? await URLSession.shared.data(from: url),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let cur  = json["current"] as? [String: Any] else { return }
+        let code  = cur["weather_code"] as? Int    ?? 0
+        let cover = cur["cloud_cover"]  as? Double ?? 30
+        cloudFraction = cover / 100.0
+        isRaining = (51...82).contains(code) || (95...99).contains(code)
+    }
+}
+
+// MARK: - Live Sky (sun arc + moon + stars + weather clouds)
 
 private struct LiveSkyView: View {
 
+    @StateObject private var weather = LiveWeatherService()
+
     struct NightStar { let x, y, alpha: Double; let r: CGFloat }
+    struct LiveCloud  { let baseX, y, width, speed, phase: Double }
 
     private static let nightStars: [NightStar] = {
         var rng = LCG(state: 5050)
@@ -680,22 +742,32 @@ private struct LiveSkyView: View {
         }
     }()
 
+    private static let clouds: [LiveCloud] = {
+        var rng = LCG(state: 8181)
+        return (0..<7).map { _ in
+            LiveCloud(baseX:  rng.next(),
+                      y:     rng.lerp(0.05, 0.40),
+                      width: rng.lerp(90, 200),
+                      speed: rng.lerp(0.006, 0.014),
+                      phase: rng.next())
+        }
+    }()
+
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 20)) { tl in
             Canvas { ctx, size in
-                let now   = tl.date
-                let t     = now.timeIntervalSinceReferenceDate
-                let cal   = Calendar.current
-                let hour  = cal.component(.hour,   from: now)
-                let mins  = cal.component(.minute, from: now)
-                let tod   = Double(hour) + Double(mins) / 60.0   // time-of-day as float hours
+                let now  = tl.date
+                let t    = now.timeIntervalSinceReferenceDate
+                let cal  = Calendar.current
+                let hour = cal.component(.hour,   from: now)
+                let mins = cal.component(.minute, from: now)
+                let tod  = Double(hour) + Double(mins) / 60.0
 
                 // ── Sun ──────────────────────────────────────────────────────────────
-                // Day arc: 6am (left horizon) → noon (zenith) → 8pm (right horizon)
-                let sunT   = (tod - 6.0) / 14.0                        // 0 at 6am, 1 at 8pm
+                let sunT   = (tod - 6.0) / 14.0
                 let clampT = min(max(sunT, 0), 1)
                 let sunNX  = 0.08 + clampT * 0.84
-                let sunNY  = 0.88 - 4.0 * clampT * (1.0 - clampT) * 0.70   // parabolic arc
+                let sunNY  = 0.88 - 4.0 * clampT * (1.0 - clampT) * 0.70
                 let sunX   = CGFloat(sunNX) * size.width
                 let sunY   = CGFloat(sunNY) * size.height
 
@@ -705,51 +777,40 @@ private struct LiveSkyView: View {
                 else if tod > 19.5           { sunAlpha = 20.5 - tod }
 
                 if sunAlpha > 0 {
-                    let distFromNoon = abs(clampT - 0.5) * 2
-                    let sunCol = Color(red: 1.0,
-                                       green: 0.96 - distFromNoon * 0.44,
-                                       blue:  0.75 - distFromNoon * 0.58)
-                    let sunR = CGFloat(28 + distFromNoon * 14)
+                    let dist    = abs(clampT - 0.5) * 2
+                    let sunCol  = Color(red: 1.0, green: 0.96 - dist * 0.44, blue: 0.75 - dist * 0.58)
+                    let sunR    = CGFloat(28 + dist * 14)
+                    let cloudOcc = weather.cloudFraction   // how much cloud dims sun
+                    let effAlpha = sunAlpha * (1.0 - cloudOcc * 0.65)
 
-                    // Glow halos
-                    let glowRadii: [(CGFloat, Double)] = [
-                        (sunR * 5.0, 0.05), (sunR * 3.0, 0.10), (sunR * 1.8, 0.20)
-                    ]
-                    for (gr, ga) in glowRadii {
-                        ctx.opacity = sunAlpha * ga
-                        ctx.fill(
-                            Path(ellipseIn: CGRect(x: sunX - gr, y: sunY - gr,
-                                                   width: gr * 2, height: gr * 2)),
-                            with: .color(sunCol))
+                    for (gr, ga) in [(sunR * 5.0, 0.05), (sunR * 3.0, 0.10), (sunR * 1.8, 0.20)] as [(CGFloat, Double)] {
+                        ctx.opacity = effAlpha * ga
+                        ctx.fill(Path(ellipseIn: CGRect(x: sunX - gr, y: sunY - gr,
+                                                        width: gr * 2, height: gr * 2)),
+                                 with: .color(sunCol))
                     }
 
-                    // Rotating rays (12 alternating long/short)
                     let rayRot = t * 0.04
                     for i in 0..<12 {
                         let angle = Double(i) * .pi / 6.0 + rayRot
                         let r1 = Double(sunR) * 1.40
                         let r2 = r1 + Double(sunR) * (i % 2 == 0 ? 0.90 : 0.50)
                         var ray = Path()
-                        ray.move(to: CGPoint(x: sunX + CGFloat(r1 * cos(angle)),
-                                             y: sunY + CGFloat(r1 * sin(angle))))
-                        ray.addLine(to: CGPoint(x: sunX + CGFloat(r2 * cos(angle)),
-                                                y: sunY + CGFloat(r2 * sin(angle))))
-                        ctx.opacity = sunAlpha * 0.48
+                        ray.move(to:    CGPoint(x: sunX + CGFloat(r1 * cos(angle)), y: sunY + CGFloat(r1 * sin(angle))))
+                        ray.addLine(to: CGPoint(x: sunX + CGFloat(r2 * cos(angle)), y: sunY + CGFloat(r2 * sin(angle))))
+                        ctx.opacity = effAlpha * 0.48
                         ctx.stroke(ray, with: .color(sunCol), lineWidth: 2.0)
                     }
 
-                    // Sun body
-                    ctx.opacity = sunAlpha * 0.92
-                    ctx.fill(
-                        Path(ellipseIn: CGRect(x: sunX - sunR, y: sunY - sunR,
-                                               width: sunR * 2, height: sunR * 2)),
-                        with: .color(sunCol))
+                    ctx.opacity = effAlpha * 0.92
+                    ctx.fill(Path(ellipseIn: CGRect(x: sunX - sunR, y: sunY - sunR,
+                                                    width: sunR * 2, height: sunR * 2)),
+                             with: .color(sunCol))
                     let coreR = sunR * 0.58
-                    ctx.opacity = sunAlpha
-                    ctx.fill(
-                        Path(ellipseIn: CGRect(x: sunX - coreR, y: sunY - coreR,
-                                               width: coreR * 2, height: coreR * 2)),
-                        with: .color(Color(red: 1.0, green: 0.98, blue: 0.90)))
+                    ctx.opacity = effAlpha
+                    ctx.fill(Path(ellipseIn: CGRect(x: sunX - coreR, y: sunY - coreR,
+                                                    width: coreR * 2, height: coreR * 2)),
+                             with: .color(Color(red: 1.0, green: 0.98, blue: 0.90)))
                 }
 
                 // ── Moon + night stars ────────────────────────────────────────────
@@ -759,35 +820,250 @@ private struct LiveSkyView: View {
                 else if tod >= 5.0 && tod < 6.0   { moonAlpha = 6.0 - tod }
 
                 if moonAlpha > 0 {
+                    let starMult = moonAlpha * (1.0 - weather.cloudFraction * 0.80)
                     for s in Self.nightStars {
-                        ctx.opacity = s.alpha * moonAlpha * 0.85
+                        ctx.opacity = s.alpha * starMult * 0.85
                         let px = CGFloat(s.x) * size.width
                         let py = CGFloat(s.y) * size.height
-                        ctx.fill(
-                            Path(ellipseIn: CGRect(x: px - s.r, y: py - s.r,
-                                                   width: s.r * 2, height: s.r * 2)),
-                            with: .color(.white))
+                        ctx.fill(Path(ellipseIn: CGRect(x: px - s.r, y: py - s.r,
+                                                        width: s.r * 2, height: s.r * 2)),
+                                 with: .color(.white))
                     }
-
-                    let moonX = size.width  * 0.72
-                    let moonY = size.height * 0.18
+                    let moonX = size.width * 0.72, moonY = size.height * 0.18
                     let moonR: CGFloat = 25
-
-                    let moonGlowLayers: [(CGFloat, Double)] = [
-                        (moonR * 3.5, 0.10), (moonR * 1.8, 0.25)
-                    ]
-                    for (gr, ga) in moonGlowLayers {
+                    for (gr, ga) in [(moonR * 3.5, 0.10), (moonR * 1.8, 0.25)] as [(CGFloat, Double)] {
                         ctx.opacity = moonAlpha * ga
-                        ctx.fill(
-                            Path(ellipseIn: CGRect(x: moonX - gr, y: moonY - gr,
-                                                   width: gr * 2, height: gr * 2)),
-                            with: .color(.white))
+                        ctx.fill(Path(ellipseIn: CGRect(x: moonX - gr, y: moonY - gr,
+                                                        width: gr * 2, height: gr * 2)),
+                                 with: .color(.white))
                     }
                     ctx.opacity = moonAlpha * 0.92
-                    ctx.fill(
-                        Path(ellipseIn: CGRect(x: moonX - moonR, y: moonY - moonR,
-                                               width: moonR * 2, height: moonR * 2)),
-                        with: .color(Color(red: 0.96, green: 0.96, blue: 0.88)))
+                    ctx.fill(Path(ellipseIn: CGRect(x: moonX - moonR, y: moonY - moonR,
+                                                    width: moonR * 2, height: moonR * 2)),
+                             with: .color(Color(red: 0.96, green: 0.96, blue: 0.88)))
+                }
+
+                // ── Drifting clouds ───────────────────────────────────────────────
+                let cloudAlpha = weather.cloudFraction * 0.78
+                guard cloudAlpha > 0.02 else { return }
+
+                for cloud in Self.clouds {
+                    let prog = fmod(cloud.phase + t * cloud.speed, 1.0)
+                    let cx   = CGFloat(prog) * (size.width + CGFloat(cloud.width) * 2)
+                              - CGFloat(cloud.width)
+                    let cy   = CGFloat(cloud.y) * size.height
+                    let w    = CGFloat(cloud.width)
+                    let h    = w * 0.42
+
+                    ctx.drawLayer { c in
+                        c.translateBy(x: cx, y: cy)
+                        c.opacity = cloudAlpha
+
+                        // Puffy cloud: overlapping ellipses forming a natural shape
+                        let bumps: [(CGFloat, CGFloat, CGFloat)] = [
+                            (-w * 0.30, h * 0.10, h * 0.55),
+                            (-w * 0.14, -h * 0.10, h * 0.68),
+                            ( w * 0.02, -h * 0.22, h * 0.72),
+                            ( w * 0.18, -h * 0.08, h * 0.62),
+                            ( w * 0.32, h * 0.12, h * 0.50),
+                            (0,          h * 0.28, w * 0.50),  // base ellipse
+                        ]
+                        for (dx, dy, r) in bumps {
+                            c.fill(Path(ellipseIn: CGRect(x: dx - r, y: dy - r,
+                                                          width: r * 2, height: r * 2)),
+                                   with: .color(Color.white))
+                        }
+                    }
+                }
+
+                // ── Rain streaks ──────────────────────────────────────────────────
+                if weather.isRaining {
+                    var rng = LCG(state: 9292)
+                    for _ in 0..<35 {
+                        let rx   = rng.next() * Double(size.width)
+                        let ry   = fmod(rng.next() + t * 0.45, 1.0) * Double(size.height + 40)
+                        let len  = rng.lerp(12, 22)
+                        var drop = Path()
+                        drop.move(to:    CGPoint(x: CGFloat(rx),        y: CGFloat(ry)))
+                        drop.addLine(to: CGPoint(x: CGFloat(rx + len * 0.18), y: CGFloat(ry + len)))
+                        ctx.opacity = 0.28
+                        ctx.stroke(drop, with: .color(Color(red: 0.72, green: 0.88, blue: 1.0)), lineWidth: 1.0)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+// MARK: - Growing Vines (Sage)
+
+private struct GrowingVines: View {
+    struct Vine {
+        let baseX, ctrlShift, phase, speed: Double
+        let leafSeeds: [Double]
+    }
+    private let vines: [Vine]
+    init() {
+        var rng = LCG(state: 4242)
+        vines = (0..<8).map { _ in
+            Vine(baseX:     rng.next(),
+                 ctrlShift: rng.lerp(-55, 55),
+                 phase:     rng.next(),
+                 speed:     rng.lerp(0.020, 0.040),
+                 leafSeeds: (0..<5).map { _ in rng.next() })
+        }
+    }
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 15)) { tl in
+            Canvas { ctx, size in
+                let t = tl.date.timeIntervalSinceReferenceDate
+                for vine in vines {
+                    let prog   = fmod(vine.phase + t * vine.speed, 1.0)
+                    let height = size.height * CGFloat(prog) * 0.88
+                    let bx     = CGFloat(vine.baseX) * size.width
+                    let sway   = CGFloat(sin(t * 0.22 + vine.phase * .pi * 2) * 18)
+                    let tipX   = bx + sway
+                    let tipY   = size.height - height
+
+                    var stem = Path()
+                    stem.move(to: CGPoint(x: bx, y: size.height))
+                    let c1 = CGPoint(x: bx + CGFloat(vine.ctrlShift), y: size.height * 0.60)
+                    let c2 = CGPoint(x: tipX - CGFloat(vine.ctrlShift * 0.3), y: tipY + height * 0.35)
+                    stem.addCurve(to: CGPoint(x: tipX, y: tipY), control1: c1, control2: c2)
+
+                    let fade = min(1, prog * 5) * (1 - max(0, (prog - 0.80) * 5))
+                    ctx.opacity = fade * 0.38
+                    ctx.stroke(stem, with: .color(Color(red: 0.14, green: 0.44, blue: 0.16)), lineWidth: 1.6)
+
+                    for (li, lseed) in vine.leafSeeds.prefix(4).enumerated() {
+                        let leafT = Double(li + 1) / 5.0
+                        guard leafT < prog else { continue }
+                        let lx = bx + (tipX - bx) * CGFloat(leafT) + CGFloat(lseed * 16 - 8)
+                        let ly = size.height - height * CGFloat(leafT)
+                        ctx.drawLayer { c in
+                            c.translateBy(x: lx, y: ly)
+                            c.rotate(by: .degrees(lseed * 120 - 60))
+                            c.opacity = fade * 0.42
+                            c.fill(leafPath(CGFloat(lseed * 7 + 7)),
+                                   with: .color(Color(red: 0.22, green: 0.60, blue: 0.24)))
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+// MARK: - Falling Stones (Stone/Mudslide)
+
+private struct FallingStones: View {
+    struct Stone {
+        let startX, speed, wobble, wobHz, phase, rotHz, seed: Double
+        let w, h: CGFloat
+    }
+    private let stones: [Stone]
+    init() {
+        var rng = LCG(state: 7171)
+        stones = (0..<14).map { _ in
+            Stone(startX: rng.next(),
+                  speed:  rng.lerp(0.055, 0.110),
+                  wobble: rng.lerp(4, 14),
+                  wobHz:  rng.lerp(0.60, 1.80),
+                  phase:  rng.next(),
+                  rotHz:  rng.lerp(-2.5, 2.5),
+                  seed:   rng.next(),
+                  w: CGFloat(rng.lerp(10, 26)),
+                  h: CGFloat(rng.lerp(8, 20)))
+        }
+    }
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30)) { tl in
+            Canvas { ctx, size in
+                let t = tl.date.timeIntervalSinceReferenceDate
+                for s in stones {
+                    let prog = fmod(s.phase + t * s.speed, 1.0)
+                    let y    = CGFloat(prog) * (size.height + 40)
+                    let x    = CGFloat(s.startX) * size.width
+                           + CGFloat(sin(t * s.wobHz + s.phase * .pi * 2) * s.wobble)
+                    let fade = sin(max(0, CGFloat(prog)) * .pi)
+                    let col  = Color(red: 0.38 + s.seed * 0.12,
+                                     green: 0.32 + s.seed * 0.08,
+                                     blue:  0.26 + s.seed * 0.06)
+                    ctx.drawLayer { c in
+                        c.translateBy(x: x, y: y)
+                        c.rotate(by: .degrees(t * s.rotHz * 50))
+                        c.opacity = Double(fade) * 0.58
+                        let sr = min(s.w, s.h) * 0.38
+                        c.fill(Path(roundedRect: CGRect(x: -s.w / 2, y: -s.h / 2,
+                                                        width: s.w, height: s.h),
+                                    cornerRadius: sr),
+                               with: .color(col))
+                        c.opacity = Double(fade) * 0.22
+                        c.fill(Path(ellipseIn: CGRect(x: -s.w * 0.28, y: -s.h * 0.38,
+                                                      width: s.w * 0.28, height: s.h * 0.22)),
+                               with: .color(.white))
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+// MARK: - Comets (Amber)
+
+private struct CometsView: View {
+    struct Comet {
+        let startX, startY, angleDeg, speed, phase, length: Double
+    }
+    private let comets: [Comet]
+    init() {
+        var rng = LCG(state: 5656)
+        comets = (0..<5).map { _ in
+            Comet(startX:   rng.lerp(0.3, 1.0),
+                  startY:   rng.lerp(0.0, 0.30),
+                  angleDeg: rng.lerp(38, 56),
+                  speed:    rng.lerp(0.016, 0.028),
+                  phase:    rng.next(),
+                  length:   rng.lerp(80, 165))
+        }
+    }
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30)) { tl in
+            Canvas { ctx, size in
+                let t = tl.date.timeIntervalSinceReferenceDate
+                for comet in comets {
+                    let prog   = fmod(comet.phase + t * comet.speed, 1.0)
+                    let fade   = sin(min(prog * 8, .pi))
+                    guard fade > 0.01 else { continue }
+
+                    let travel  = prog * Double(size.width + size.height) * 0.85
+                    let rad     = comet.angleDeg * .pi / 180
+                    let headX   = CGFloat(comet.startX * Double(size.width) - cos(rad) * travel)
+                    let headY   = CGFloat(comet.startY * Double(size.height) + sin(rad) * travel)
+                    let tailX   = headX + CGFloat(cos(rad) * comet.length)
+                    let tailY   = headY - CGFloat(sin(rad) * comet.length)
+
+                    var trail = Path()
+                    trail.move(to:    CGPoint(x: headX, y: headY))
+                    trail.addLine(to: CGPoint(x: tailX, y: tailY))
+
+                    ctx.opacity = fade * 0.28
+                    ctx.stroke(trail, with: .color(Color(red: 1.0, green: 0.88, blue: 0.38)), lineWidth: 8)
+                    ctx.opacity = fade * 0.55
+                    ctx.stroke(trail, with: .color(Color(red: 1.0, green: 0.68, blue: 0.10)), lineWidth: 3)
+
+                    let cR: CGFloat = 4.5, gR: CGFloat = 12
+                    ctx.opacity = fade * 0.38
+                    ctx.fill(Path(ellipseIn: CGRect(x: headX - gR, y: headY - gR,
+                                                   width: gR * 2, height: gR * 2)),
+                             with: .color(Color(red: 1.0, green: 0.90, blue: 0.50)))
+                    ctx.opacity = fade * 0.92
+                    ctx.fill(Path(ellipseIn: CGRect(x: headX - cR, y: headY - cR,
+                                                   width: cR * 2, height: cR * 2)),
+                             with: .color(.white))
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
