@@ -63,15 +63,15 @@ struct AppThemes {
             nightColors:   [c(0.05,0.05,0.35), c(0.12,0.12,0.55), c(0.20,0.15,0.65)],
             urgentColor: c(1.00,0.30,0.40), kindaUrgentColor: c(1.00,0.82,0.20), notUrgentColor: c(0.35,0.30,0.85)
         ),
-        // ── Paper: warm vintage parchment, sepia at night ──
+        // ── Deep: dark navy focus — near-black with blue undertone, no distraction ──
         ThemeOption(
-            id: "paper", name: "Paper",
-            color1: c(0.85,0.65,0.35), color2: c(0.95,0.82,0.60), color3: c(0.70,0.50,0.25),
-            sunriseColors: [c(1.00,0.88,0.62), c(1.00,0.78,0.45), c(0.95,0.82,0.55)],
-            dayColors:     [c(0.98,0.90,0.72), c(0.90,0.82,0.60), c(1.00,0.93,0.75)],
-            sunsetColors:  [c(0.90,0.62,0.28), c(0.80,0.50,0.18), c(0.70,0.45,0.20)],
-            nightColors:   [c(0.40,0.25,0.10), c(0.55,0.35,0.15), c(0.30,0.18,0.07)],
-            urgentColor: c(0.80,0.15,0.10), kindaUrgentColor: c(0.85,0.65,0.35), notUrgentColor: c(0.35,0.60,0.25)
+            id: "deep", name: "Deep",
+            color1: c(0.20,0.38,0.75), color2: c(0.12,0.22,0.55), color3: c(0.28,0.48,0.88),
+            sunriseColors: [c(0.18,0.30,0.62), c(0.12,0.20,0.50), c(0.22,0.35,0.70)],
+            dayColors:     [c(0.18,0.32,0.68), c(0.10,0.18,0.48), c(0.24,0.40,0.78)],
+            sunsetColors:  [c(0.14,0.24,0.55), c(0.10,0.18,0.42), c(0.18,0.28,0.62)],
+            nightColors:   [c(0.06,0.08,0.22), c(0.10,0.14,0.32), c(0.04,0.06,0.16)],
+            urgentColor: c(0.95,0.30,0.30), kindaUrgentColor: c(0.95,0.72,0.18), notUrgentColor: c(0.20,0.38,0.75)
         ),
         // ── Cyberpunk: electric neons searing against dark grids ──
         ThemeOption(
@@ -83,15 +83,15 @@ struct AppThemes {
             nightColors:   [c(0.00,0.90,0.30), c(1.00,0.00,0.70), c(0.05,0.05,0.18)],
             urgentColor: c(1.00,0.10,0.65), kindaUrgentColor: c(1.00,0.95,0.00), notUrgentColor: c(0.00,1.00,0.40)
         ),
-        // ── Retrowave: hot pink & violet chrome, neon sunset forever ──
+        // ── Sage: muted green forest calm, earthy and grounding ──
         ThemeOption(
-            id: "retrowave", name: "Retrowave",
-            color1: c(1.00,0.10,0.65), color2: c(0.70,0.00,1.00), color3: c(0.10,0.50,1.00),
-            sunriseColors: [c(1.00,0.15,0.65), c(1.00,0.50,0.10), c(0.55,0.00,0.80)],
-            dayColors:     [c(0.70,0.00,1.00), c(0.15,0.50,1.00), c(1.00,0.00,0.80)],
-            sunsetColors:  [c(1.00,0.05,0.55), c(0.65,0.00,0.85), c(1.00,0.40,0.00)],
-            nightColors:   [c(0.80,0.00,0.55), c(0.40,0.00,0.80), c(1.00,0.10,0.50)],
-            urgentColor: c(1.00,0.10,0.65), kindaUrgentColor: c(0.70,0.00,1.00), notUrgentColor: c(0.10,0.50,1.00)
+            id: "sage", name: "Sage",
+            color1: c(0.42,0.62,0.46), color2: c(0.32,0.50,0.36), color3: c(0.55,0.72,0.52),
+            sunriseColors: [c(0.50,0.68,0.48), c(0.40,0.58,0.38), c(0.58,0.75,0.52)],
+            dayColors:     [c(0.40,0.60,0.44), c(0.32,0.50,0.36), c(0.50,0.68,0.48)],
+            sunsetColors:  [c(0.30,0.45,0.32), c(0.24,0.38,0.26), c(0.36,0.52,0.38)],
+            nightColors:   [c(0.12,0.20,0.14), c(0.18,0.28,0.20), c(0.08,0.14,0.10)],
+            urgentColor: c(0.88,0.28,0.20), kindaUrgentColor: c(0.92,0.72,0.18), notUrgentColor: c(0.42,0.62,0.46)
         ),
         // ── Forest: lush emerald canopy, fireflies at night ──
         ThemeOption(
@@ -113,75 +113,35 @@ struct AppThemes {
             nightColors:   [c(0.00,0.25,0.70), c(0.00,0.45,0.85), c(0.00,0.18,0.55)],
             urgentColor: c(0.95,0.30,0.25), kindaUrgentColor: c(1.00,0.78,0.15), notUrgentColor: c(0.00,0.55,0.95)
         ),
-        // ── Ume: Japanese plum blossom — rose petal dawn to cherry night ──
+        // ── Stone: warm charcoal, grounding and distraction-free ──
         ThemeOption(
-            id: "ume", name: "Ume",
-            color1: c(1.00,0.45,0.70), color2: c(0.75,0.15,0.50), color3: c(0.95,0.70,0.85),
-            sunriseColors: [c(1.00,0.78,0.85), c(1.00,0.60,0.72), c(0.98,0.85,0.92)],
-            dayColors:     [c(1.00,0.50,0.75), c(0.90,0.60,0.88), c(0.80,0.50,0.85)],
-            sunsetColors:  [c(0.75,0.15,0.48), c(0.90,0.20,0.60), c(0.55,0.08,0.38)],
-            nightColors:   [c(0.55,0.05,0.30), c(0.75,0.10,0.45), c(0.40,0.03,0.22)],
-            urgentColor: c(0.75,0.10,0.30), kindaUrgentColor: c(1.00,0.45,0.70), notUrgentColor: c(0.60,0.90,0.85)
+            id: "stone", name: "Stone",
+            color1: c(0.58,0.52,0.48), color2: c(0.45,0.40,0.36), color3: c(0.68,0.62,0.56),
+            sunriseColors: [c(0.65,0.58,0.52), c(0.55,0.48,0.42), c(0.72,0.65,0.58)],
+            dayColors:     [c(0.55,0.50,0.46), c(0.48,0.42,0.38), c(0.62,0.56,0.52)],
+            sunsetColors:  [c(0.42,0.36,0.32), c(0.35,0.30,0.26), c(0.50,0.44,0.40)],
+            nightColors:   [c(0.14,0.12,0.10), c(0.20,0.18,0.16), c(0.10,0.08,0.06)],
+            urgentColor: c(0.90,0.28,0.20), kindaUrgentColor: c(0.90,0.68,0.18), notUrgentColor: c(0.58,0.52,0.48)
         ),
-        // ── Copper: burnished metal — from golden forge to dark bronze ──
+        // ── Amber: golden warm focus, soft candlelight at night ──
         ThemeOption(
-            id: "copper", name: "Copper",
-            color1: c(0.85,0.52,0.18), color2: c(0.65,0.35,0.08), color3: c(1.00,0.72,0.28),
-            sunriseColors: [c(1.00,0.75,0.25), c(0.95,0.62,0.18), c(0.80,0.55,0.12)],
-            dayColors:     [c(0.88,0.58,0.22), c(0.75,0.48,0.15), c(1.00,0.70,0.28)],
-            sunsetColors:  [c(0.65,0.35,0.08), c(0.55,0.26,0.05), c(0.75,0.40,0.12)],
-            nightColors:   [c(0.40,0.18,0.04), c(0.60,0.28,0.08), c(0.30,0.12,0.02)],
-            urgentColor: c(0.80,0.15,0.10), kindaUrgentColor: c(0.85,0.52,0.18), notUrgentColor: c(0.25,0.72,0.45)
+            id: "amber", name: "Amber",
+            color1: c(0.92,0.70,0.22), color2: c(0.80,0.55,0.12), color3: c(1.00,0.82,0.32),
+            sunriseColors: [c(1.00,0.85,0.38), c(0.98,0.75,0.22), c(1.00,0.90,0.42)],
+            dayColors:     [c(0.92,0.72,0.24), c(0.85,0.62,0.16), c(1.00,0.80,0.30)],
+            sunsetColors:  [c(0.75,0.48,0.10), c(0.62,0.36,0.06), c(0.82,0.52,0.12)],
+            nightColors:   [c(0.28,0.16,0.04), c(0.42,0.24,0.06), c(0.20,0.10,0.02)],
+            urgentColor: c(0.88,0.18,0.12), kindaUrgentColor: c(0.92,0.70,0.22), notUrgentColor: c(0.28,0.72,0.50)
         ),
-        // ── Terminal: hacker green phosphor glow, bright even in the dark ──
+        // ── Dusk: twilight purple-blue, calming and immersive ──
         ThemeOption(
-            id: "terminal", name: "Terminal",
-            color1: c(0.00,1.00,0.35), color2: c(0.00,0.80,0.20), color3: c(0.40,1.00,0.10),
-            sunriseColors: [c(0.00,0.65,0.15), c(0.20,0.90,0.00), c(0.02,0.08,0.04)],
-            dayColors:     [c(0.00,1.00,0.40), c(0.30,0.95,0.00), c(0.00,0.70,0.20)],
-            sunsetColors:  [c(0.00,0.80,0.25), c(0.50,1.00,0.00), c(0.04,0.08,0.04)],
-            nightColors:   [c(0.00,0.80,0.25), c(0.00,0.50,0.12), c(0.02,0.12,0.04)],
-            urgentColor: c(0.85,0.15,0.10), kindaUrgentColor: c(0.90,0.90,0.20), notUrgentColor: c(0.00,1.00,0.35)
-        ),
-        // ── Organs: visceral crimson — beating red at every hour ──
-        ThemeOption(
-            id: "organs", name: "Organs",
-            color1: c(0.85,0.08,0.08), color2: c(1.00,0.15,0.10), color3: c(0.65,0.04,0.04),
-            sunriseColors: [c(0.80,0.10,0.08), c(0.55,0.05,0.05), c(1.00,0.18,0.08)],
-            dayColors:     [c(0.90,0.12,0.10), c(0.70,0.08,0.06), c(1.00,0.18,0.12)],
-            sunsetColors:  [c(0.65,0.06,0.06), c(0.45,0.03,0.03), c(0.80,0.08,0.06)],
-            nightColors:   [c(0.45,0.04,0.04), c(0.65,0.06,0.05), c(0.30,0.02,0.02)],
-            urgentColor: c(0.85,0.08,0.08), kindaUrgentColor: c(1.00,0.50,0.10), notUrgentColor: c(0.20,0.70,0.35)
-        ),
-        // ── Lavender: dreamy violet fields, purple aurora at night ──
-        ThemeOption(
-            id: "lavender", name: "Lavender",
-            color1: c(0.72,0.58,1.00), color2: c(0.55,0.38,0.90), color3: c(0.85,0.75,1.00),
-            sunriseColors: [c(0.88,0.80,1.00), c(0.75,0.62,0.98), c(0.95,0.85,1.00)],
-            dayColors:     [c(0.65,0.52,0.95), c(0.55,0.60,1.00), c(0.72,0.62,0.98)],
-            sunsetColors:  [c(0.58,0.32,0.90), c(0.72,0.28,0.80), c(0.45,0.22,0.72)],
-            nightColors:   [c(0.40,0.18,0.75), c(0.58,0.25,0.88), c(0.28,0.12,0.60)],
-            urgentColor: c(1.00,0.30,0.55), kindaUrgentColor: c(0.72,0.58,1.00), notUrgentColor: c(0.45,0.90,0.80)
-        ),
-        // ── GPT: lush emerald intelligence — bright jade ──
-        ThemeOption(
-            id: "gpt", name: "GPT",
-            color1: c(0.06,0.78,0.60), color2: c(0.00,0.60,0.45), color3: c(0.15,0.88,0.70),
-            sunriseColors: [c(0.25,0.88,0.68), c(0.10,0.65,0.50), c(0.35,0.92,0.72)],
-            dayColors:     [c(0.06,0.78,0.60), c(0.12,0.68,0.55), c(0.20,0.85,0.65)],
-            sunsetColors:  [c(0.03,0.55,0.40), c(0.02,0.38,0.28), c(0.06,0.50,0.38)],
-            nightColors:   [c(0.02,0.35,0.25), c(0.05,0.50,0.38), c(0.00,0.25,0.18)],
-            urgentColor: c(1.00,0.35,0.25), kindaUrgentColor: c(1.00,0.82,0.20), notUrgentColor: c(0.06,0.78,0.60)
-        ),
-        // ── Claude: warm terracotta sunrise to burnt ember night ──
-        ThemeOption(
-            id: "claude", name: "Claude",
-            color1: c(0.90,0.52,0.35), color2: c(1.00,0.65,0.42), color3: c(0.75,0.38,0.22),
-            sunriseColors: [c(1.00,0.75,0.42), c(1.00,0.60,0.30), c(0.90,0.52,0.20)],
-            dayColors:     [c(0.92,0.55,0.38), c(0.80,0.45,0.28), c(1.00,0.65,0.42)],
-            sunsetColors:  [c(0.75,0.35,0.20), c(0.60,0.28,0.14), c(0.85,0.38,0.22)],
-            nightColors:   [c(0.55,0.22,0.10), c(0.72,0.32,0.15), c(0.40,0.15,0.06)],
-            urgentColor: c(0.90,0.35,0.15), kindaUrgentColor: c(1.00,0.65,0.42), notUrgentColor: c(0.95,0.92,0.88)
+            id: "dusk", name: "Dusk",
+            color1: c(0.45,0.38,0.80), color2: c(0.28,0.22,0.62), color3: c(0.60,0.52,0.90),
+            sunriseColors: [c(0.52,0.42,0.82), c(0.40,0.30,0.68), c(0.62,0.52,0.90)],
+            dayColors:     [c(0.42,0.36,0.78), c(0.32,0.26,0.62), c(0.52,0.44,0.84)],
+            sunsetColors:  [c(0.35,0.26,0.65), c(0.25,0.18,0.52), c(0.45,0.34,0.72)],
+            nightColors:   [c(0.10,0.08,0.28), c(0.18,0.14,0.42), c(0.06,0.05,0.20)],
+            urgentColor: c(0.95,0.28,0.42), kindaUrgentColor: c(0.95,0.75,0.20), notUrgentColor: c(0.45,0.38,0.80)
         ),
         // ── Cute: bubblegum pastels, warm cotton candy evening ──
         ThemeOption(

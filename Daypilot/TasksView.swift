@@ -1784,95 +1784,76 @@ struct TaskFormView: View {
     }
 }
 
-// MARK: - Mini Calendar Strip
+// MARK: - Day Navigator
 
-struct MiniCalendarStrip: View {
-    @Binding var displayedMonth: Date
+struct DayNavigatorView: View {
     @Binding var selectedDate: Date?
-    let tasksByDay: [Date: [Daypilot]]
+    @AppStorage("selectedTheme") private var selectedTheme = "original"
 
-    private let calendar = Calendar.current
+    private var theme: ThemeOption { AppThemes.find(selectedTheme) }
+    private var displayDate: Date { selectedDate ?? Calendar.current.startOfDay(for: Date()) }
 
-    private var days: [Date] {
-        guard let interval = calendar.dateInterval(of: .month, for: displayedMonth) else { return [] }
-        var result: [Date] = []
-        var day = interval.start
-        while day < interval.end {
-            result.append(day)
-            day = calendar.date(byAdding: .day, value: 1, to: day)!
-        }
-        return result
+    private var dateLabel: String {
+        let f = DateFormatter()
+        f.dateFormat = "EEEE, MM/dd"
+        return f.string(from: displayDate)
     }
 
     var body: some View {
-        VStack(spacing: 6) {
-            HStack {
-                Button { changeMonth(by: -1) } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(.white.opacity(0.8))
+        HStack(spacing: 0) {
+            Button {
+                let cal = Calendar.current
+                if let prev = cal.date(byAdding: .day, value: -1, to: displayDate) {
+                    selectedDate = cal.startOfDay(for: prev)
                 }
-                Spacer()
-                Text(displayedMonth, format: .dateTime.year().month())
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(.white)
-                Spacer()
-                if selectedDate != nil {
-                    Button("All") { selectedDate = nil }
-                        .font(.caption.weight(.medium))
-                        .foregroundColor(.blue)
-                        .padding(.trailing, 8)
-                }
-                Button { changeMonth(by: 1) } label: {
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(.white.opacity(0.8))
-                }
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(theme.accentColor)
+                    .frame(width: 36, height: 36)
             }
-            .padding(.horizontal)
+            .buttonStyle(.plain)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    ForEach(days, id: \.self) { day in
-                        let isToday = calendar.isDateInToday(day)
-                        let isSelected = selectedDate.map { calendar.isDate($0, inSameDayAs: day) } ?? false
-                        let hasTasks = tasksByDay[calendar.startOfDay(for: day)] != nil
+            Spacer()
 
-                        Button {
-                            selectedDate = isSelected ? nil : day
-                        } label: {
-                            VStack(spacing: 3) {
-                                Text(day.formatted(.dateTime.weekday(.narrow)))
-                                    .font(.system(size: 10))
-                                    .foregroundColor(isSelected ? .white : .white.opacity(0.55))
-                                Text(day.formatted(.dateTime.day()))
-                                    .font(.system(size: 15, weight: isToday ? .bold : .regular))
-                                    .foregroundColor(isSelected ? .white : (isToday ? .blue : .white))
-                                Circle()
-                                    .fill(hasTasks ? Color.white.opacity(isSelected ? 1 : 0.6) : Color.clear)
-                                    .frame(width: 5, height: 5)
-                            }
-                            .frame(width: 38)
-                            .padding(.vertical, 7)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(isSelected ? Color.blue : Color.white.opacity(0.08))
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
+            Text(dateLabel)
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(.white)
+
+            Spacer()
+
+            if !Calendar.current.isDateInToday(displayDate) {
+                Button("Today") {
+                    selectedDate = Calendar.current.startOfDay(for: Date())
                 }
-                .padding(.horizontal)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(theme.accentColor)
+                .buttonStyle(.plain)
+                .frame(width: 36, height: 36)
+            } else {
+                Color.clear.frame(width: 36, height: 36)
             }
+
+            Button {
+                let cal = Calendar.current
+                if let next = cal.date(byAdding: .day, value: 1, to: displayDate) {
+                    selectedDate = cal.startOfDay(for: next)
+                }
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(theme.accentColor)
+                    .frame(width: 36, height: 36)
+            }
+            .buttonStyle(.plain)
         }
-        .padding(.vertical, 8)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
         .background(Color.white.opacity(0.06))
-    }
-
-    private func changeMonth(by value: Int) {
-        if let newDate = calendar.date(byAdding: .month, value: value, to: displayedMonth) {
-            displayedMonth = calendar.startOfMonth(for: newDate)
-            selectedDate = nil
+        .onAppear {
+            if selectedDate == nil {
+                selectedDate = Calendar.current.startOfDay(for: Date())
+            }
         }
     }
 }
@@ -2100,9 +2081,8 @@ struct TasksView: View {
     @State private var currentDate = Date()
     private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
-    // Calendar strip state
-    @State private var selectedCalendarDate: Date? = nil
-    @State private var calendarDisplayedMonth: Date = Calendar.current.startOfMonth(for: Date())
+    // Day navigator state
+    @State private var selectedCalendarDate: Date? = Calendar.current.startOfDay(for: Date())
 
     // Form state
     @State private var isSheetShowing = false
@@ -2224,68 +2204,12 @@ struct TasksView: View {
         }
     }
 
-    private var tasksByDay: [Date: [Daypilot]] {
-        var dict: [Date: [Daypilot]] = Dictionary(
-            grouping: daypilots.filter { $0.type == .task && $0.dueDate != nil }
-        ) { Calendar.current.startOfDay(for: $0.dueDate!) }
-
-        // Project each habit across its recurrence dates for the next 60 days
-        let cal = Calendar.current
-        let today = cal.startOfDay(for: Date())
-        let habits = daypilots.filter { $0.type == .habit && $0.dueDate != nil }
-        for habit in habits {
-            for offset in 0..<60 {
-                guard let day = cal.date(byAdding: .day, value: offset, to: today) else { continue }
-                if habitOccursOn(habit, date: day) {
-                    let key = cal.startOfDay(for: day)
-                    dict[key, default: []].append(habit)
-                }
-            }
-        }
-        return dict
-    }
-
     private func habitOccursOn(_ task: Daypilot, date: Date) -> Bool {
         HabitScheduler.occursOn(task, date: date)
     }
 
-    private var greetingText: String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        let first = cachedDisplayName.components(separatedBy: " ").first ?? ""
-        let nameStr = first.isEmpty ? "" : ", \(first)"
-        let timeGreeting: String
-        switch hour {
-        case 5..<12:  timeGreeting = "Good morning\(nameStr) ☀️"
-        case 12..<17: timeGreeting = "Good afternoon\(nameStr) 👋"
-        case 17..<21: timeGreeting = "Good evening\(nameStr) 🌇"
-        default:      timeGreeting = "Working late\(nameStr)? 🌙"
-        }
-        let count = filteredAndSortedDaypilots.count
-        let taskStr: String
-        switch count {
-        case 0:     taskStr = "You're all caught up."
-        case 1:     taskStr = "1 task lined up."
-        case 2...3: taskStr = "\(count) things lined up."
-        case 4...7: taskStr = "Busy day — \(count) tasks."
-        default:    taskStr = "Big day — \(count) tasks to tackle."
-        }
-        return "\(timeGreeting)  \(taskStr)"
-    }
-
     private var mainContent: some View {
         VStack(spacing: 0) {
-            // Greeting banner
-            HStack {
-                TypingText(fullText: greetingText)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(.white.opacity(0.85))
-                    .id(greetingText)
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 10)
-
             if !crunchWindowTasks.isEmpty {
                 CrunchAlertBanner(count: crunchWindowTasks.count) {
                     pomodoroTask = crunchWindowTasks.first
@@ -2294,11 +2218,7 @@ struct TasksView: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
 
-            MiniCalendarStrip(
-                displayedMonth: $calendarDisplayedMonth,
-                selectedDate: $selectedCalendarDate,
-                tasksByDay: tasksByDay
-            )
+            DayNavigatorView(selectedDate: $selectedCalendarDate)
 
             // Inline search bar (only when active)
             if isSearching {

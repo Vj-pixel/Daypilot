@@ -26,8 +26,6 @@ struct ThemeParticleView: View {
             FallingParticles(cfg: .bubbles)
         case "cyberpunk":
             CyberpunkGrid()
-        case "retrowave":
-            RetrowaveScanlines()
         case "cute":
             FallingParticles(cfg: .hearts)
         case "tangerine":
@@ -361,13 +359,13 @@ private enum PConfig {
 
     var count: Int {
         switch self {
-        case .petals:   return 20
-        case .sparks:   return 26
-        case .leaves:   return 18
-        case .bubbles:  return 18
-        case .hearts:   return 16
-        case .sparkles: return 22
-        case .dust:     return 28
+        case .petals:   return 10
+        case .sparks:   return 12
+        case .leaves:   return 8
+        case .bubbles:  return 8
+        case .hearts:   return 8
+        case .sparkles: return 10
+        case .dust:     return 12
         }
     }
     var color: Color {
@@ -404,7 +402,7 @@ private enum PConfig {
         default: return true
         }
     }
-    var baseAlpha: Double { 0.72 }
+    var baseAlpha: Double { 0.45 }
     var seed: UInt64 {
         switch self {
         case .petals:   return 101

@@ -13,8 +13,6 @@ struct SettingsView: View {
     @AppStorage("selectedTheme")         private var selectedTheme         = "original"
     @AppStorage("themeMode")             private var themeMode             = "full"
     @AppStorage("appLockEnabled")        private var appLockEnabled        = false
-    @AppStorage("selectedFontDesign")    private var selectedFontDesign    = "default"
-    @AppStorage("selectedFontWeight")    private var selectedFontWeight    = "regular"
     @AppStorage("progressDisplayStyle")  private var progressDisplayStyle  = "segmented"
     @AppStorage("textSizeOption")        private var textSizeOption        = "default"
     @AppStorage("tabOrder")              private var tabOrder              = "tasks,canvas,settings,profile"
@@ -49,29 +47,6 @@ struct SettingsView: View {
                                 .foregroundColor(.white.opacity(0.5))
                                 .padding(.leading, 6)
                         }
-                    }
-
-                    NavigationLink(destination: FontPickerView().environmentObject(gradientManager)) {
-                        HStack {
-                            Text("Font Style")
-                                .foregroundColor(.white)
-                            Spacer()
-                            Text(fontDisplayName)
-                                .font(.caption)
-                                .foregroundColor(.white.opacity(0.5))
-                        }
-                    }
-
-                    HStack {
-                        Text("Font Weight").foregroundColor(.white)
-                        Spacer()
-                        Picker("", selection: $selectedFontWeight) {
-                            Text("Light").tag("light")
-                            Text("Regular").tag("regular")
-                            Text("Semibold").tag("semibold")
-                        }
-                        .pickerStyle(.segmented)
-                        .frame(width: 200)
                     }
 
                     NavigationLink(destination: ProgressStylePickerView().environmentObject(gradientManager)) {
@@ -215,21 +190,6 @@ struct SettingsView: View {
                 Button("Delete", role: .destructive) { deleteAllTasks() }
                 Button("Cancel", role: .cancel) {}
             }
-        }
-    }
-
-    private var fontDisplayName: String {
-        switch selectedFontDesign {
-        case "rounded":     return "Rounded"
-        case "serif":       return "New York"
-        case "monospaced":  return "Monospaced"
-        case "avenirnext":  return "Avenir Next"
-        case "georgia":     return "Georgia"
-        case "baskerville": return "Baskerville"
-        case "didot":       return "Didot"
-        case "typewriter":  return "Typewriter"
-        case "gillsans":    return "Gill Sans"
-        default:            return "System"
         }
     }
 

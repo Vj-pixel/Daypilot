@@ -3,8 +3,6 @@ import LocalAuthentication
 
 struct ContentView: View {
     @AppStorage("darkModeEnabled")    private var darkModeEnabled    = true
-    @AppStorage("selectedFontDesign") private var selectedFontDesign = "default"
-    @AppStorage("selectedFontWeight") private var selectedFontWeight = "regular"
     @AppStorage("textSizeOption")     private var textSizeOption     = "default"
     @AppStorage("tabOrder")           private var tabOrder           = "tasks,canvas,settings,profile"
     @AppStorage("pomodoroPlacement")  private var pomodoroPlacement  = "corner"
@@ -15,35 +13,6 @@ struct ContentView: View {
     @State private var isLocked       = false
     @Environment(\.scenePhase) private var scenePhase
     @Namespace private var tabPill
-
-    private var fontDesign: Font.Design {
-        switch selectedFontDesign {
-        case "rounded":    return .rounded
-        case "serif":      return .serif
-        case "monospaced": return .monospaced
-        default:           return .default
-        }
-    }
-
-    private var customFontName: String? {
-        switch selectedFontDesign {
-        case "avenirnext":  return "AvenirNext-Regular"
-        case "georgia":     return "Georgia"
-        case "baskerville": return "Baskerville"
-        case "didot":       return "Didot"
-        case "typewriter":  return "AmericanTypewriter"
-        case "gillsans":    return "GillSans"
-        default:            return nil
-        }
-    }
-
-    private var fontWeight: Font.Weight {
-        switch selectedFontWeight {
-        case "light":     return .light
-        case "semibold":  return .semibold
-        default:          return .regular
-        }
-    }
 
     private var tintColor: Color {
         themeMode == "accent" ? AppThemes.find(selectedTheme).accentColor : .white
@@ -79,10 +48,8 @@ struct ContentView: View {
                     .tag(id)
             }
         }
-        .fontDesign(fontDesign)
-        .fontWeight(fontWeight)
+        .fontDesign(.rounded)
         .dynamicTypeSize(dynamicTypeSize)
-        .applyCustomFont(customFontName)
         .tint(tintColor)
         .toolbarBackground(.hidden, for: .tabBar)
         .preferredColorScheme(darkModeEnabled ? .dark : .light)
@@ -96,20 +63,6 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .background, appLockEnabled { isLocked = true }
             else if phase == .active, appLockEnabled, isLocked { authenticate() }
-        }
-        .onAppear { applyNavBarFont() }
-        .onChange(of: selectedFontDesign) { _, _ in applyNavBarFont() }
-    }
-
-    private func applyNavBarFont() {
-        if let name = customFontName,
-           let titleFont  = UIFont(name: name, size: 17),
-           let largeFont  = UIFont(name: name, size: 34) {
-            UINavigationBar.appearance().titleTextAttributes      = [.font: titleFont]
-            UINavigationBar.appearance().largeTitleTextAttributes = [.font: largeFont]
-        } else {
-            UINavigationBar.appearance().titleTextAttributes      = nil
-            UINavigationBar.appearance().largeTitleTextAttributes = nil
         }
     }
 
@@ -154,17 +107,6 @@ struct ContentView: View {
         case "profile":  return "person.circle"
         case "focus":    return "timer"
         default:         return "circle"
-        }
-    }
-}
-
-private extension View {
-    @ViewBuilder
-    func applyCustomFont(_ name: String?) -> some View {
-        if let name {
-            self.environment(\.font, .custom(name, size: 17, relativeTo: .body))
-        } else {
-            self
         }
     }
 }
