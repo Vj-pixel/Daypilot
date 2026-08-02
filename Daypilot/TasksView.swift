@@ -1800,7 +1800,7 @@ struct DayNavigatorView: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 12) {
             Button {
                 let cal = Calendar.current
                 if let prev = cal.date(byAdding: .day, value: -1, to: displayDate) {
@@ -1808,16 +1808,18 @@ struct DayNavigatorView: View {
                 }
             } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 18, weight: .bold))
                     .foregroundColor(theme.accentColor)
-                    .frame(width: 36, height: 36)
+                    .frame(width: 40, height: 40)
+                    .background(theme.accentColor.opacity(0.18))
+                    .clipShape(Circle())
             }
             .buttonStyle(.plain)
 
             Spacer()
 
             Text(dateLabel)
-                .font(.subheadline.weight(.semibold))
+                .font(.subheadline.weight(.bold))
                 .foregroundColor(.white)
 
             Spacer()
@@ -1826,12 +1828,15 @@ struct DayNavigatorView: View {
                 Button("Today") {
                     selectedDate = Calendar.current.startOfDay(for: Date())
                 }
-                .font(.caption.weight(.semibold))
+                .font(.caption.weight(.bold))
                 .foregroundColor(theme.accentColor)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(theme.accentColor.opacity(0.18))
+                .clipShape(Capsule())
                 .buttonStyle(.plain)
-                .frame(width: 36, height: 36)
             } else {
-                Color.clear.frame(width: 36, height: 36)
+                Color.clear.frame(width: 40, height: 40)
             }
 
             Button {
@@ -1841,9 +1846,11 @@ struct DayNavigatorView: View {
                 }
             } label: {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 18, weight: .bold))
                     .foregroundColor(theme.accentColor)
-                    .frame(width: 36, height: 36)
+                    .frame(width: 40, height: 40)
+                    .background(theme.accentColor.opacity(0.18))
+                    .clipShape(Circle())
             }
             .buttonStyle(.plain)
         }
