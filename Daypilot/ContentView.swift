@@ -5,7 +5,7 @@ struct ContentView: View {
     @AppStorage("darkModeEnabled")    private var darkModeEnabled    = true
     @AppStorage("textSizeOption")     private var textSizeOption     = "default"
     @AppStorage("tabOrder")           private var tabOrder           = "tasks,canvas,settings,profile"
-    @AppStorage("pomodoroPlacement")  private var pomodoroPlacement  = "corner"
+    private let pomodoroPlacement = "corner"
     @AppStorage("appLockEnabled")     private var appLockEnabled     = false
     @AppStorage("selectedTheme")      private var selectedTheme      = "original"
     @AppStorage("themeMode")          private var themeMode          = "full"

@@ -16,7 +16,6 @@ struct SettingsView: View {
     @AppStorage("progressDisplayStyle")  private var progressDisplayStyle  = "segmented"
     @AppStorage("textSizeOption")        private var textSizeOption        = "default"
     @AppStorage("tabOrder")              private var tabOrder              = "tasks,canvas,settings,profile"
-    @AppStorage("pomodoroPlacement")     private var pomodoroPlacement     = "corner"
 
     @Environment(\.modelContext) private var modelContext
     @Query private var daypilots: [Daypilot]
@@ -164,17 +163,6 @@ struct SettingsView: View {
                     NavigationLink(destination: TabOrderView(tabOrder: $tabOrder).environmentObject(gradientManager)) {
                         SettingsIconRow(systemImage: "square.grid.2x2", label: "Tab Order", iconColor: .indigo)
                     }
-                    Picker(selection: $pomodoroPlacement) {
-                        Text("Corner button").tag("corner")
-                        Text("Dedicated tab").tag("tab")
-                    } label: {
-                        HStack {
-                            SettingsIconRow(systemImage: "timer", label: "Focus Timer", iconColor: .orange)
-                            Spacer()
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .tint(.white.opacity(0.7))
                 }
                 .listRowBackground(Color.white.opacity(0.10))
             }

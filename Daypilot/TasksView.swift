@@ -667,12 +667,12 @@ struct TaskContentView: View {
         .background(
             ZStack {
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.white.opacity(0.07))
+                    .fill(.ultraThinMaterial)
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
                             .stroke(
                                 LinearGradient(
-                                    colors: [.white.opacity(0.22), .white.opacity(0.06)],
+                                    colors: [.white.opacity(0.28), .white.opacity(0.08)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
@@ -1831,7 +1831,7 @@ struct DayNavigatorView: View {
             Spacer()
 
             if !Calendar.current.isDateInToday(displayDate) {
-                Button("Today") {
+                Button("Go to Today") {
                     selectedDate = Calendar.current.startOfDay(for: Date())
                 }
                 .font(.caption.weight(.bold))
@@ -2083,6 +2083,82 @@ struct CelebrationOverlay: View {
     }
 }
 
+// MARK: - Featured Hero Card
+
+private struct FeaturedHeroCard: View {
+    let task: Daypilot
+    let theme: ThemeOption
+    let onTap: () -> Void
+
+    private var urgencyLabel: String {
+        switch task.urgency {
+        case .urgent:      return "Urgent"
+        case .kindaUrgent: return "Due Soon"
+        case .notUrgent:   return "Upcoming"
+        }
+    }
+
+    private var dueDateLabel: String? {
+        guard let due = task.dueDate else { return nil }
+        let f = DateFormatter(); f.dateFormat = "EEE, MMM d"
+        return f.string(from: due)
+    }
+
+    var body: some View {
+        Button(action: onTap) { cardContent }
+            .frame(height: 150)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.white.opacity(0.20), lineWidth: 1))
+            .shadow(color: theme.color1.opacity(0.28), radius: 18, x: 0, y: 8)
+            .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+            .padding(.bottom, 2)
+    }
+
+    private var cardContent: some View {
+        ZStack(alignment: .topLeading) {
+            LinearGradient(colors: [theme.color1.opacity(0.82), theme.color2.opacity(0.68)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            Color.white.opacity(0.07)
+            cardBody.padding(18)
+        }
+    }
+
+    private var cardBody: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top) {
+                HStack(spacing: 4) {
+                    Image(systemName: "bolt.fill").font(.system(size: 9, weight: .bold))
+                    Text("NEXT UP").font(.system(size: 9, weight: .bold)).tracking(1)
+                }
+                .foregroundColor(.white.opacity(0.65))
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .background(Color.white.opacity(0.15)).clipShape(Capsule())
+                Spacer()
+                Text(urgencyLabel)
+                    .font(.caption.weight(.bold)).foregroundColor(.white)
+                    .padding(.horizontal, 10).padding(.vertical, 4)
+                    .background(Color.white.opacity(0.20)).clipShape(Capsule())
+            }
+            Text((task.taskEmoji.map { $0 + " " } ?? "") + task.title)
+                .font(.title3.weight(.bold)).foregroundColor(.white).lineLimit(2)
+            if let label = dueDateLabel {
+                Label(label, systemImage: "calendar")
+                    .font(.caption.weight(.medium)).foregroundColor(.white.opacity(0.75))
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.22)).frame(height: 3)
+                    Capsule().fill(Color.white)
+                        .frame(width: geo.size.width * CGFloat(max(0.03, Double(task.progress) / 100.0)), height: 3)
+                }
+            }
+            .frame(height: 3)
+        }
+    }
+}
+
 // MARK: - Main Tasks View
 
 struct TasksView: View {
@@ -2131,6 +2207,7 @@ struct TasksView: View {
     @AppStorage("selectedTheme") private var selectedTheme = "original"
     private var theme: ThemeOption { AppThemes.find(selectedTheme) }
     private var cachedDisplayName: String { UserDefaults.standard.string(forKey: "cachedDisplayName") ?? "" }
+    @State private var typeFilter: String = "All"
 
     // Streak celebration
     @State private var streakMilestone: Int? = nil
@@ -2221,6 +2298,44 @@ struct TasksView: View {
         HabitScheduler.occursOn(task, date: date)
     }
 
+    private var featuredTask: Daypilot? {
+        guard !isSearching else { return nil }
+        return filteredAndSortedDaypilots
+            .filter { $0.type == .task && !$0.isCompleted }
+            .max { a, b in featuredScore(a) < featuredScore(b) }
+    }
+
+    private func featuredScore(_ t: Daypilot) -> Double {
+        var s: Double = 0
+        switch t.urgency {
+        case .urgent:      s = 3
+        case .kindaUrgent: s = 2
+        case .notUrgent:   s = 1
+        }
+        if let due = t.dueDate { s += max(0, 1 - due.timeIntervalSinceNow / (14 * 86400)) }
+        return s
+    }
+
+    private var typeFilterPills: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(["All", "Tasks", "Habits", "Apps"], id: \.self) { f in
+                    Button { withAnimation(.easeInOut(duration: 0.18)) { typeFilter = f } } label: {
+                        Text(f)
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(typeFilter == f ? .black : .white)
+                            .padding(.horizontal, 14).padding(.vertical, 7)
+                            .background(typeFilter == f ? Color.white : Color.white.opacity(0.14))
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+        .padding(.vertical, 8)
+    }
+
     private var mainContent: some View {
         VStack(spacing: 0) {
             if !crunchWindowTasks.isEmpty {
@@ -2232,6 +2347,15 @@ struct TasksView: View {
             }
 
             DayNavigatorView(selectedDate: $selectedCalendarDate)
+
+            if let featured = featuredTask, typeFilter == "All" {
+                FeaturedHeroCard(task: featured, theme: theme) {
+                    startEditing(featured)
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
+            typeFilterPills
 
             // Inline search bar (only when active)
             if isSearching {
@@ -2430,7 +2554,13 @@ struct TasksView: View {
     }
 
     private var tasksList: some View {
-        let regularTasks = filteredAndSortedDaypilots.filter { $0.type == .task }
+        let featuredID = featuredTask?.uuid
+        let showTasks = typeFilter == "All" || typeFilter == "Tasks"
+        let showApps  = typeFilter == "All" || typeFilter == "Apps"
+        let showHabits = typeFilter == "All" || typeFilter == "Habits"
+
+        let regularTasks = filteredAndSortedDaypilots
+            .filter { $0.type == .task && $0.uuid != featuredID }
         let applications = filteredAndSortedDaypilots.filter { $0.type == .application }
         let habits = filteredAndSortedDaypilots
             .filter { $0.type == .habit }
@@ -2442,21 +2572,21 @@ struct TasksView: View {
             }
 
         return List {
-            if !regularTasks.isEmpty {
+            if showTasks && !regularTasks.isEmpty {
                 Section("Tasks") {
                     ForEach(regularTasks, id: \.uuid) { toDo in
                         taskRow(for: toDo)
                     }
                 }
             }
-            if !applications.isEmpty {
+            if showApps && !applications.isEmpty {
                 Section("Applications") {
                     ForEach(applications, id: \.uuid) { toDo in
                         taskRow(for: toDo)
                     }
                 }
             }
-            if !habits.isEmpty {
+            if showHabits && !habits.isEmpty {
                 Section("Habits") {
                     ForEach(habits, id: \.uuid) { toDo in
                         taskRow(for: toDo)
