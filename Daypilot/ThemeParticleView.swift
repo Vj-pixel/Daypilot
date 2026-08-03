@@ -27,6 +27,8 @@ struct ThemeParticleView: View {
             FallingParticles(cfg: .bubbles)
         case "cyberpunk":
             CyberpunkGrid()
+        case "deep":
+            SeaCreaturesView()
         case "sage":
             GrowingVines()
         case "stone":
@@ -1064,6 +1066,151 @@ private struct CometsView: View {
                     ctx.fill(Path(ellipseIn: CGRect(x: headX - cR, y: headY - cR,
                                                    width: cR * 2, height: cR * 2)),
                              with: .color(.white))
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+// MARK: - Sea Creatures (Deep theme)
+
+private struct SeaCreaturesView: View {
+    struct Jellyfish {
+        let xFrac, yFrac, radius, phase, bobSpeed: Double
+        let tentacles: [(len: Double, waveAmp: Double, waveHz: Double)]
+    }
+    struct Fish {
+        let xFrac, yFrac, speed, phase, bodyW: Double
+        let goRight: Bool
+        let colorShift: Double
+    }
+
+    private let jellies: [Jellyfish]
+    private let fish: [Fish]
+
+    init() {
+        var rng = LCG(state: 3939)
+        jellies = (0..<4).map { _ in
+            Jellyfish(
+                xFrac:    rng.next(),
+                yFrac:    rng.lerp(0.06, 0.72),
+                radius:   rng.lerp(14, 24),
+                phase:    rng.next() * .pi * 2,
+                bobSpeed: rng.lerp(0.24, 0.42),
+                tentacles: (0..<5).map { _ in
+                    (len: rng.lerp(1.2, 2.0),
+                     waveAmp: rng.lerp(3.0, 7.0),
+                     waveHz: rng.lerp(0.8, 1.5))
+                }
+            )
+        }
+        fish = (0..<5).map { i in
+            Fish(xFrac:      rng.next(),
+                 yFrac:      rng.lerp(0.05, 0.88),
+                 speed:      rng.lerp(0.028, 0.052),
+                 phase:      rng.next(),
+                 bodyW:      rng.lerp(18, 34),
+                 goRight:    i % 2 == 0,
+                 colorShift: rng.lerp(-0.05, 0.05))
+        }
+    }
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 24)) { tl in
+            Canvas { ctx, size in
+                let t = tl.date.timeIntervalSinceReferenceDate
+
+                // Fish (background layer)
+                for f in fish {
+                    let prog = fmod(f.phase + t * f.speed, 1.0)
+                    let fadeIn  = min(prog / 0.12, 1.0)
+                    let fadeOut = min((1.0 - prog) / 0.12, 1.0)
+                    let fade    = fadeIn * fadeOut
+                    guard fade > 0.01 else { continue }
+
+                    let x  = CGFloat(f.goRight ? prog : 1.0 - prog) * size.width
+                    let y  = CGFloat(f.yFrac) * size.height
+                           + CGFloat(sin(t * 0.55 + f.phase * .pi * 2) * 15)
+                    let bW = CGFloat(f.bodyW)
+                    let bH = bW * 0.40
+                    let fishColor = Color(red: 0.42 + f.colorShift,
+                                         green: 0.76 + f.colorShift * 0.5,
+                                         blue:  0.98)
+
+                    ctx.drawLayer { c in
+                        c.opacity = fade * 0.30
+                        c.fill(Path(ellipseIn: CGRect(x: x - bW / 2, y: y - bH / 2,
+                                                       width: bW, height: bH)),
+                               with: .color(fishColor))
+                        var tail = Path()
+                        if f.goRight {
+                            tail.move(to: CGPoint(x: x - bW / 2 + 1, y: y))
+                            tail.addLine(to: CGPoint(x: x - bW / 2 - bW * 0.36, y: y - bH * 0.62))
+                            tail.addLine(to: CGPoint(x: x - bW / 2 - bW * 0.36, y: y + bH * 0.62))
+                        } else {
+                            tail.move(to: CGPoint(x: x + bW / 2 - 1, y: y))
+                            tail.addLine(to: CGPoint(x: x + bW / 2 + bW * 0.36, y: y - bH * 0.62))
+                            tail.addLine(to: CGPoint(x: x + bW / 2 + bW * 0.36, y: y + bH * 0.62))
+                        }
+                        tail.closeSubpath()
+                        c.fill(tail, with: .color(fishColor))
+                        let eyeX: CGFloat = f.goRight ? x + bW * 0.20 : x - bW * 0.20
+                        c.opacity = fade * 0.55
+                        c.fill(Path(ellipseIn: CGRect(x: eyeX - 1.5, y: y - 1.5, width: 3, height: 3)),
+                               with: .color(.white))
+                    }
+                }
+
+                // Jellyfish (foreground)
+                for jelly in jellies {
+                    let x   = CGFloat(jelly.xFrac) * size.width
+                    let y   = CGFloat(jelly.yFrac) * size.height
+                          + CGFloat(sin(t * jelly.bobSpeed + jelly.phase) * 20)
+                    let r   = CGFloat(jelly.radius)
+                    let pulse = 0.26 + sin(t * 0.72 + jelly.phase) * 0.07
+
+                    // Glow halo behind dome
+                    let gR = r * 1.6
+                    ctx.opacity = max(0, pulse * 0.14)
+                    ctx.fill(Path(ellipseIn: CGRect(x: x - gR, y: y - gR * 0.55,
+                                                    width: gR * 2, height: gR * 1.1)),
+                             with: .color(Color(red: 0.40, green: 0.72, blue: 1.00)))
+
+                    // Dome cap
+                    var dome = Path()
+                    dome.addArc(center: CGPoint(x: x, y: y), radius: r,
+                                startAngle: .degrees(180), endAngle: .degrees(0), clockwise: false)
+                    dome.closeSubpath()
+                    ctx.opacity = max(0, pulse)
+                    ctx.fill(dome, with: .color(Color(red: 0.38, green: 0.70, blue: 1.00)))
+                    ctx.opacity = max(0, pulse + 0.24)
+                    ctx.stroke(dome, with: .color(Color(red: 0.62, green: 0.90, blue: 1.00)), lineWidth: 1.0)
+
+                    // Inner highlight
+                    var hl = Path()
+                    hl.addArc(center: CGPoint(x: x - r * 0.18, y: y - r * 0.22),
+                              radius: r * 0.36,
+                              startAngle: .degrees(205), endAngle: .degrees(335), clockwise: false)
+                    ctx.opacity = max(0, pulse * 0.50)
+                    ctx.stroke(hl, with: .color(.white), lineWidth: 0.7)
+
+                    // Tentacles
+                    let numT = jelly.tentacles.count
+                    for (ti, tent) in jelly.tentacles.enumerated() {
+                        let tx   = x - r * 0.72 + CGFloat(Double(ti) / Double(numT - 1)) * r * 1.44
+                        let tLen = CGFloat(tent.len * Double(r))
+                        let w1   = CGFloat(sin(t * tent.waveHz + Double(ti) * 0.9 + jelly.phase) * tent.waveAmp)
+                        let w2   = CGFloat(sin(t * tent.waveHz * 0.72 + Double(ti) + jelly.phase + 1.3) * tent.waveAmp * 0.65)
+                        var tp = Path()
+                        tp.move(to: CGPoint(x: tx, y: y))
+                        tp.addCurve(to:      CGPoint(x: tx + w1,       y: y + tLen),
+                                    control1: CGPoint(x: tx + w1 * 0.5, y: y + tLen * 0.35),
+                                    control2: CGPoint(x: tx + w2,       y: y + tLen * 0.68))
+                        ctx.opacity = 0.17
+                        ctx.stroke(tp, with: .color(Color(red: 0.52, green: 0.88, blue: 1.00)),
+                                   style: StrokeStyle(lineWidth: 0.85, lineCap: .round))
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

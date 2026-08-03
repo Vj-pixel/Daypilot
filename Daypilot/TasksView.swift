@@ -584,9 +584,7 @@ struct TaskContentView: View {
                         }
                     }
 
-                    Text(task.urgency.rawValue)
-                        .font(.caption2)
-                        .foregroundColor(.primary.opacity(0.6))
+                    urgencyBadge
 
                     if !task.subtasks.isEmpty {
                         let done = task.subtasks.filter(\.isCompleted).count
@@ -718,15 +716,22 @@ struct TaskContentView: View {
                 HabitIceEffect()
             }
         }
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 3)
+                .fill(accentBarColor)
+                .frame(width: 4)
+                .padding(.vertical, 12)
+                .padding(.leading, 5)
+        }
         .shadow(
-            color: isOnFire && animatedFireActive ? .red.opacity(0.72) : isFrozen ? .cyan.opacity(0.75) : .black.opacity(0.10),
-            radius: isOnFire && animatedFireActive ? 26 : isFrozen ? 26 : 10,
-            x: 0, y: (isOnFire && animatedFireActive) || isFrozen ? 0 : 5
+            color: isOnFire && animatedFireActive ? .red.opacity(0.72) : isFrozen ? .cyan.opacity(0.75) : .black.opacity(0.22),
+            radius: isOnFire && animatedFireActive ? 26 : isFrozen ? 26 : 16,
+            x: 0, y: (isOnFire && animatedFireActive) || isFrozen ? 0 : 8
         )
         .shadow(
-            color: isOnFire && animatedFireActive ? .orange.opacity(0.48) : isFrozen ? Color(red: 0.6, green: 0.9, blue: 1.0).opacity(0.48) : .white.opacity(0.10),
-            radius: (isOnFire && animatedFireActive) || isFrozen ? 11 : 1,
-            x: 0, y: (isOnFire && animatedFireActive) || isFrozen ? 0 : 1
+            color: isOnFire && animatedFireActive ? .orange.opacity(0.48) : isFrozen ? Color(red: 0.6, green: 0.9, blue: 1.0).opacity(0.48) : .black.opacity(0.08),
+            radius: (isOnFire && animatedFireActive) || isFrozen ? 11 : 4,
+            x: 0, y: (isOnFire && animatedFireActive) || isFrozen ? 0 : 2
         )
         .scaleEffect(taskScale)
         .rotationEffect(.degrees(taskRotation))
@@ -801,6 +806,41 @@ struct TaskContentView: View {
                 .padding(.vertical, 2)
                 .background(color)
                 .clipShape(Capsule())
+        }
+    }
+
+    @ViewBuilder
+    private var urgencyBadge: some View {
+        switch task.urgency {
+        case .urgent:
+            urgencyPill(label: "Urgent",
+                        bg: Color(red: 1.0, green: 0.28, blue: 0.24).opacity(0.22),
+                        fg: Color(red: 1.0, green: 0.50, blue: 0.48))
+        case .kindaUrgent:
+            urgencyPill(label: "Due Soon",
+                        bg: Color(red: 1.0, green: 0.62, blue: 0.0).opacity(0.22),
+                        fg: Color(red: 1.0, green: 0.75, blue: 0.32))
+        case .notUrgent:
+            EmptyView()
+        }
+    }
+
+    private func urgencyPill(label: String, bg: Color, fg: Color) -> some View {
+        Text(label)
+            .font(.caption2.weight(.bold))
+            .foregroundColor(fg)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(bg)
+            .clipShape(Capsule())
+    }
+
+    private var accentBarColor: Color {
+        if task.type == .habit { return effectiveRingColor.opacity(0.85) }
+        switch task.urgency {
+        case .urgent:      return Color(red: 1.0, green: 0.28, blue: 0.24)
+        case .kindaUrgent: return Color(red: 1.0, green: 0.62, blue: 0.0)
+        case .notUrgent:   return AppThemes.find(selectedTheme).accentColor.opacity(0.45)
         }
     }
 
@@ -2546,11 +2586,47 @@ struct TasksView: View {
     }
 
     private var emptyStateView: some View {
-        ContentUnavailableView(
-            selectedCalendarDate != nil ? "No tasks for this day" : "Nothing to do yet!",
-            systemImage: selectedCalendarDate != nil ? "calendar.badge.exclamationmark" : "checkmark.circle.fill"
-        )
-        .foregroundColor(.white)
+        VStack(spacing: 22) {
+            ZStack {
+                Circle()
+                    .fill(.white.opacity(0.06))
+                    .frame(width: 84, height: 84)
+                Circle()
+                    .strokeBorder(.white.opacity(0.10), lineWidth: 1)
+                    .frame(width: 84, height: 84)
+                Image(systemName: selectedCalendarDate != nil
+                      ? "calendar.badge.exclamationmark"
+                      : "checkmark.circle")
+                    .font(.system(size: 36, weight: .light))
+                    .foregroundColor(.white.opacity(0.28))
+            }
+            VStack(spacing: 8) {
+                Text(selectedCalendarDate != nil ? "Nothing scheduled" : "All clear for now")
+                    .font(.title3.weight(.semibold))
+                    .foregroundColor(.white.opacity(0.75))
+                Text(selectedCalendarDate != nil
+                     ? "Tap  +  to add something for this day"
+                     : "Tap  +  to add your first task or habit")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.38))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 28)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 56)
+    }
+
+    private func sectionHeader(_ title: String, icon: String) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon)
+                .font(.caption.weight(.semibold))
+            Text(title.uppercased())
+                .font(.caption.weight(.semibold))
+                .kerning(0.6)
+        }
+        .foregroundColor(.white.opacity(0.45))
+        .textCase(nil)
     }
 
     private var tasksList: some View {
@@ -2573,21 +2649,21 @@ struct TasksView: View {
 
         return List {
             if showTasks && !regularTasks.isEmpty {
-                Section("Tasks") {
+                Section(header: sectionHeader("Tasks", icon: "checklist")) {
                     ForEach(regularTasks, id: \.uuid) { toDo in
                         taskRow(for: toDo)
                     }
                 }
             }
             if showApps && !applications.isEmpty {
-                Section("Applications") {
+                Section(header: sectionHeader("Applications", icon: "briefcase")) {
                     ForEach(applications, id: \.uuid) { toDo in
                         taskRow(for: toDo)
                     }
                 }
             }
             if showHabits && !habits.isEmpty {
-                Section("Habits") {
+                Section(header: sectionHeader("Habits", icon: "repeat")) {
                     ForEach(habits, id: \.uuid) { toDo in
                         taskRow(for: toDo)
                     }
