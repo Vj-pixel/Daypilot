@@ -2129,6 +2129,9 @@ private struct FeaturedHeroCard: View {
     let task: Daypilot
     let theme: ThemeOption
     let onTap: () -> Void
+    let onComplete: () -> Void
+
+    @State private var completeTapped = false
 
     private var urgencyLabel: String {
         switch task.urgency {
@@ -2145,15 +2148,42 @@ private struct FeaturedHeroCard: View {
     }
 
     var body: some View {
-        Button(action: onTap) { cardContent }
+        cardContent
+            .onTapGesture { onTap() }
             .frame(height: 150)
             .clipShape(RoundedRectangle(cornerRadius: 20))
             .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.white.opacity(0.20), lineWidth: 1))
+            .overlay(alignment: .bottomTrailing) { completeButton }
             .shadow(color: theme.color1.opacity(0.28), radius: 18, x: 0, y: 8)
-            .buttonStyle(.plain)
             .padding(.horizontal, 16)
             .padding(.top, 10)
             .padding(.bottom, 2)
+    }
+
+    private var completeButton: some View {
+        Button {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.65)) {
+                completeTapped = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+                onComplete()
+            }
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(completeTapped ? Color.white.opacity(0.40) : Color.white.opacity(0.18))
+                    .frame(width: 36, height: 36)
+                Circle()
+                    .strokeBorder(Color.white.opacity(0.45), lineWidth: 1)
+                    .frame(width: 36, height: 36)
+                Image(systemName: completeTapped ? "checkmark.circle.fill" : "checkmark")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(.white)
+            }
+            .scaleEffect(completeTapped ? 1.15 : 1.0)
+        }
+        .buttonStyle(.plain)
+        .padding(12)
     }
 
     private var cardContent: some View {
@@ -2389,9 +2419,11 @@ struct TasksView: View {
             DayNavigatorView(selectedDate: $selectedCalendarDate)
 
             if let featured = featuredTask, typeFilter == "All" {
-                FeaturedHeroCard(task: featured, theme: theme) {
+                FeaturedHeroCard(task: featured, theme: theme, onTap: {
                     startEditing(featured)
-                }
+                }, onComplete: {
+                    markTaskDone(featured)
+                })
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
